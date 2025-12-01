@@ -20,8 +20,8 @@ async def get_materiali(
     limit: int = Query(100, ge=1, le=1000),
     sito: Optional[str] = None,
     area: Optional[str] = None,
-    us: Optional[int] = None,
-    nr_cassa: Optional[str] = None,
+    us: Optional[str] = None,
+    nr_cassa: Optional[int] = None,
     luogo_conservazione: Optional[str] = None,
     tipo_reperto: Optional[str] = None,
     search: Optional[str] = None,
@@ -62,8 +62,8 @@ async def get_materiali_paginated(
     page_size: int = Query(20, ge=1, le=100),
     sito: Optional[str] = None,
     area: Optional[str] = None,
-    us: Optional[int] = None,
-    nr_cassa: Optional[str] = None,
+    us: Optional[str] = None,
+    nr_cassa: Optional[int] = None,
     luogo_conservazione: Optional[str] = None,
     tipo_reperto: Optional[str] = None,
     search: Optional[str] = None,
@@ -143,7 +143,7 @@ async def get_materials_summary(
         boxes = []
         for box_name, box_info in storage_info["boxes"].items():
             boxes.append(BoxSummary(
-                nr_cassa=box_name,
+                nr_cassa=box_name if box_name != "Non specificata" else 0,
                 luogo_conservazione=storage_name,
                 total_items=len(box_info["items"]),
                 types=list(box_info["types"])
@@ -154,7 +154,7 @@ async def get_materials_summary(
             luogo_conservazione=storage_name,
             total_boxes=len(boxes),
             total_items=sum(b.total_items for b in boxes),
-            boxes=sorted(boxes, key=lambda x: x.nr_cassa)
+            boxes=sorted(boxes, key=lambda x: x.nr_cassa if isinstance(x.nr_cassa, int) else 0)
         ))
 
     # Count by type
@@ -219,7 +219,7 @@ async def get_boxes(
                 types=types
             ))
 
-    return sorted(boxes, key=lambda x: x.nr_cassa)
+    return sorted(boxes, key=lambda x: x.nr_cassa if isinstance(x.nr_cassa, int) else 0)
 
 
 @router.get("/storage-locations", response_model=List[str])

@@ -19,8 +19,9 @@ async def get_pottery_list(
     limit: int = Query(100, ge=1, le=1000),
     sito: Optional[str] = None,
     area: Optional[str] = None,
-    us: Optional[int] = None,
-    tipo_reperto: Optional[str] = None,
+    us: Optional[str] = None,
+    form: Optional[str] = None,
+    material: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -33,17 +34,20 @@ async def get_pottery_list(
         query = query.filter(Pottery.area == area)
     if us is not None:
         query = query.filter(Pottery.us == us)
-    if tipo_reperto:
-        query = query.filter(Pottery.tipo_reperto == tipo_reperto)
+    if form:
+        query = query.filter(Pottery.form == form)
+    if material:
+        query = query.filter(Pottery.material == material)
     if search:
         query = query.filter(
-            (Pottery.descrizione.ilike(f"%{search}%")) |
-            (Pottery.definizione.ilike(f"%{search}%"))
+            (Pottery.note.ilike(f"%{search}%")) |
+            (Pottery.form.ilike(f"%{search}%")) |
+            (Pottery.specific_form.ilike(f"%{search}%"))
         )
 
     pottery = query.order_by(
         Pottery.sito,
-        Pottery.numero_inventario
+        Pottery.id_number
     ).offset(skip).limit(limit).all()
 
     return pottery
@@ -55,9 +59,10 @@ async def get_pottery_paginated(
     page_size: int = Query(20, ge=1, le=100),
     sito: Optional[str] = None,
     area: Optional[str] = None,
-    us: Optional[int] = None,
-    tipo_reperto: Optional[str] = None,
-    datazione: Optional[str] = None,
+    us: Optional[str] = None,
+    form: Optional[str] = None,
+    material: Optional[str] = None,
+    ware: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -70,14 +75,17 @@ async def get_pottery_paginated(
         query = query.filter(Pottery.area == area)
     if us is not None:
         query = query.filter(Pottery.us == us)
-    if tipo_reperto:
-        query = query.filter(Pottery.tipo_reperto == tipo_reperto)
-    if datazione:
-        query = query.filter(Pottery.datazione.ilike(f"%{datazione}%"))
+    if form:
+        query = query.filter(Pottery.form == form)
+    if material:
+        query = query.filter(Pottery.material == material)
+    if ware:
+        query = query.filter(Pottery.ware.ilike(f"%{ware}%"))
     if search:
         query = query.filter(
-            (Pottery.descrizione.ilike(f"%{search}%")) |
-            (Pottery.definizione.ilike(f"%{search}%"))
+            (Pottery.note.ilike(f"%{search}%")) |
+            (Pottery.form.ilike(f"%{search}%")) |
+            (Pottery.specific_form.ilike(f"%{search}%"))
         )
 
     total = query.count()
@@ -85,7 +93,7 @@ async def get_pottery_paginated(
 
     items = query.order_by(
         Pottery.sito,
-        Pottery.numero_inventario
+        Pottery.id_number
     ).offset((page - 1) * page_size).limit(page_size).all()
 
     return {
@@ -97,17 +105,30 @@ async def get_pottery_paginated(
     }
 
 
-@router.get("/types", response_model=List[str])
-async def get_pottery_types(
+@router.get("/forms", response_model=List[str])
+async def get_pottery_forms(
     sito: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Get list of pottery types"""
-    query = db.query(Pottery.tipo_reperto).distinct()
+    """Get list of pottery forms"""
+    query = db.query(Pottery.form).distinct()
     if sito:
         query = query.filter(Pottery.sito == sito)
-    types = query.all()
-    return [t[0] for t in types if t[0]]
+    forms = query.all()
+    return [f[0] for f in forms if f[0]]
+
+
+@router.get("/materials", response_model=List[str])
+async def get_pottery_materials(
+    sito: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get list of pottery materials"""
+    query = db.query(Pottery.material).distinct()
+    if sito:
+        query = query.filter(Pottery.sito == sito)
+    materials = query.all()
+    return [m[0] for m in materials if m[0]]
 
 
 @router.get("/fabrics", response_model=List[str])
@@ -115,12 +136,25 @@ async def get_pottery_fabrics(
     sito: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Get list of ceramic fabrics (corpo ceramico)"""
-    query = db.query(Pottery.corpo_ceramico).distinct()
+    """Get list of ceramic fabrics"""
+    query = db.query(Pottery.fabric).distinct()
     if sito:
         query = query.filter(Pottery.sito == sito)
     fabrics = query.all()
     return [f[0] for f in fabrics if f[0]]
+
+
+@router.get("/wares", response_model=List[str])
+async def get_pottery_wares(
+    sito: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get list of pottery wares"""
+    query = db.query(Pottery.ware).distinct()
+    if sito:
+        query = query.filter(Pottery.sito == sito)
+    wares = query.all()
+    return [w[0] for w in wares if w[0]]
 
 
 @router.get("/statistics")
@@ -135,45 +169,55 @@ async def get_pottery_statistics(
 
     total = query.count()
 
-    # Total weight
-    total_weight = db.query(func.sum(Pottery.peso))
+    # Total quantity
+    total_qty = db.query(func.sum(Pottery.qty))
     if sito:
-        total_weight = total_weight.filter(Pottery.sito == sito)
-    total_weight = total_weight.scalar() or 0
+        total_qty = total_qty.filter(Pottery.sito == sito)
+    total_qty = total_qty.scalar() or 0
 
-    # Count by type
-    by_type = db.query(
-        Pottery.tipo_reperto,
+    # Count by form
+    by_form = db.query(
+        Pottery.form,
         func.count(Pottery.id_rep).label('count')
     )
     if sito:
-        by_type = by_type.filter(Pottery.sito == sito)
-    by_type = by_type.group_by(Pottery.tipo_reperto).all()
+        by_form = by_form.filter(Pottery.sito == sito)
+    by_form = by_form.group_by(Pottery.form).all()
+
+    # Count by material
+    by_material = db.query(
+        Pottery.material,
+        func.count(Pottery.id_rep).label('count')
+    )
+    if sito:
+        by_material = by_material.filter(Pottery.sito == sito)
+    by_material = by_material.group_by(Pottery.material).all()
 
     # Count by fabric
     by_fabric = db.query(
-        Pottery.corpo_ceramico,
+        Pottery.fabric,
         func.count(Pottery.id_rep).label('count')
     )
     if sito:
         by_fabric = by_fabric.filter(Pottery.sito == sito)
-    by_fabric = by_fabric.group_by(Pottery.corpo_ceramico).all()
+    by_fabric = by_fabric.group_by(Pottery.fabric).all()
 
-    # Count by dating
-    by_dating = db.query(
-        Pottery.datazione,
+    # Count by ware
+    by_ware = db.query(
+        Pottery.ware,
         func.count(Pottery.id_rep).label('count')
     )
     if sito:
-        by_dating = by_dating.filter(Pottery.sito == sito)
-    by_dating = by_dating.group_by(Pottery.datazione).all()
+        by_ware = by_ware.filter(Pottery.sito == sito)
+    by_ware = by_ware.group_by(Pottery.ware).all()
 
     return {
         "total": total,
-        "total_weight_g": total_weight,
-        "by_type": {t[0] or "N/A": t[1] for t in by_type},
+        "total_qty": total_qty,
+        "by_form": {f[0] or "N/A": f[1] for f in by_form},
+        "by_material": {m[0] or "N/A": m[1] for m in by_material},
         "by_fabric": {f[0] or "N/A": f[1] for f in by_fabric},
-        "by_dating": {d[0] or "N/A": d[1] for d in by_dating}
+        "by_ware": {w[0] or "N/A": w[1] for w in by_ware}
     }
 
 

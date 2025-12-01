@@ -2,7 +2,7 @@
 Pydantic schemas for API request/response validation
 """
 from pydantic import BaseModel
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Union
 from datetime import date
 
 
@@ -28,7 +28,7 @@ class SiteResponse(SiteBase):
 class USBase(BaseModel):
     sito: Optional[str] = None
     area: Optional[str] = None
-    us: Optional[int] = None
+    us: Optional[str] = None  # text in DB
     d_stratigrafica: Optional[str] = None
     d_interpretativa: Optional[str] = None
     descrizione: Optional[str] = None
@@ -62,8 +62,8 @@ class MaterialeBase(BaseModel):
     definizione: Optional[str] = None
     descrizione: Optional[str] = None
     area: Optional[str] = None
-    us: Optional[int] = None
-    nr_cassa: Optional[str] = None
+    us: Optional[str] = None  # text in DB
+    nr_cassa: Optional[int] = None  # bigint in DB
     luogo_conservazione: Optional[str] = None
     stato_conservazione: Optional[str] = None
     datazione_reperto: Optional[str] = None
@@ -83,24 +83,39 @@ class MaterialeResponse(MaterialeBase):
         from_attributes = True
 
 
-# Pottery schemas
+# Pottery schemas - updated to match pottery_table structure
 class PotteryBase(BaseModel):
     sito: Optional[str] = None
     area: Optional[str] = None
-    us: Optional[int] = None
-    numero_inventario: Optional[int] = None
-    tipo_reperto: Optional[str] = None
-    definizione: Optional[str] = None
-    descrizione: Optional[str] = None
-    corpo_ceramico: Optional[str] = None
-    rivestimento: Optional[str] = None
-    diametro_orlo: Optional[float] = None
-    altezza: Optional[float] = None
-    peso: Optional[float] = None
-    datazione: Optional[str] = None
-    nr_cassa: Optional[str] = None
-    luogo_conservazione: Optional[str] = None
-    stato_conservazione: Optional[str] = None
+    us: Optional[str] = None  # text in DB
+    id_number: Optional[int] = None
+    box: Optional[int] = None
+    photo: Optional[str] = None
+    drawing: Optional[str] = None
+    anno: Optional[int] = None
+    fabric: Optional[str] = None
+    percent: Optional[str] = None
+    material: Optional[str] = None
+    form: Optional[str] = None
+    specific_form: Optional[str] = None
+    ware: Optional[str] = None
+    munsell: Optional[str] = None
+    surf_trat: Optional[str] = None
+    exdeco: Optional[str] = None
+    intdeco: Optional[str] = None
+    wheel_made: Optional[str] = None
+    descrip_ex_deco: Optional[str] = None
+    descrip_in_deco: Optional[str] = None
+    note: Optional[str] = None
+    diametro_max: Optional[float] = None
+    qty: Optional[int] = None
+    diametro_rim: Optional[float] = None
+    diametro_bottom: Optional[float] = None
+    diametro_height: Optional[float] = None
+    diametro_preserved: Optional[float] = None
+    specific_shape: Optional[str] = None
+    bag: Optional[int] = None
+    sector: Optional[str] = None
 
 
 class PotteryResponse(PotteryBase):
@@ -126,7 +141,7 @@ class MediaResponse(BaseModel):
 
 # Summary schemas for materials inventory
 class BoxSummary(BaseModel):
-    nr_cassa: str
+    nr_cassa: Union[int, str]  # can be int or string representation
     luogo_conservazione: Optional[str] = None
     total_items: int
     types: List[str] = []

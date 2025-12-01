@@ -153,7 +153,7 @@ async def get_us(us_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/by-number/{sito}/{area}/{us_number}", response_model=USResponse)
-async def get_us_by_number(sito: str, area: str, us_number: int, db: Session = Depends(get_db)):
+async def get_us_by_number(sito: str, area: str, us_number: str, db: Session = Depends(get_db)):
     """Get a specific US by site, area and US number"""
     us = db.query(US).filter(
         US.sito == sito,
