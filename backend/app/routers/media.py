@@ -266,7 +266,7 @@ async def get_media_for_entity(
         ).first()
 
         if thumb:
-            media_cat = get_media_category(thumb.media_filename, thumb.filetype)
+            media_cat = get_media_category(thumb.media_filename, thumb.filetype, thumb.mediatype)
 
             # Filter by category if specified
             if category and category != "all" and media_cat != category:
@@ -410,7 +410,7 @@ async def list_media(
 
     media_items = []
     for m in items:
-        media_cat = get_media_category(m.media_filename, m.filetype)
+        media_cat = get_media_category(m.media_filename, m.filetype, m.mediatype)
         media_items.append(MediaResponse(
             id_media=m.id_media,
             media_filename=m.media_filename,
@@ -468,7 +468,7 @@ async def search_media_with_associations(
         if thumb.id_media in seen_ids:
             continue
 
-        media_cat = get_media_category(thumb.media_filename, thumb.filetype)
+        media_cat = get_media_category(thumb.media_filename, thumb.filetype, thumb.mediatype)
 
         # Filter by category if specified
         if media_category and media_category != media_cat:
@@ -545,7 +545,7 @@ async def get_media_info(media_id: int, db: Session = Depends(get_db)):
     if not thumb:
         raise HTTPException(status_code=404, detail="Media not found")
 
-    media_cat = get_media_category(thumb.media_filename, thumb.filetype)
+    media_cat = get_media_category(thumb.media_filename, thumb.filetype, thumb.mediatype)
     return MediaResponse(
         id_media=thumb.id_media,
         media_filename=thumb.media_filename,

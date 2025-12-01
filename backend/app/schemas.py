@@ -141,12 +141,22 @@ class MediaResponse(BaseModel):
         from_attributes = True
 
 
-def get_media_category(filename: Optional[str], filetype: Optional[str]) -> str:
-    """Determine media category from filename or filetype"""
-    if not filename and not filetype:
-        return "image"
+def get_media_category(filename: Optional[str], filetype: Optional[str], mediatype: Optional[str] = None) -> str:
+    """
+    Determine media category from mediatype field (preferred) or filetype/filename as fallback.
+    PyArchInit stores the media type in the 'mediatype' field: 'image', 'video', '3d'
+    """
+    # First check the mediatype field (most reliable)
+    if mediatype:
+        mt = mediatype.lower().strip()
+        if mt in ('image', 'foto', 'photo', 'img'):
+            return "image"
+        elif mt in ('video', 'movie', 'film'):
+            return "video"
+        elif mt in ('3d', 'model', '3dmodel', 'mesh'):
+            return "3d"
 
-    # Check extension
+    # Fallback: check extension from filetype or filename
     ext = ""
     if filetype:
         ext = filetype.lower().lstrip('.')
@@ -162,6 +172,7 @@ def get_media_category(filename: Optional[str], filetype: Optional[str]) -> str:
     # 3D model extensions
     elif ext in ('glb', 'gltf', 'obj', 'fbx', 'stl', 'ply', '3ds', 'dae'):
         return "3d"
+
     # Default to image
     return "image"
 
