@@ -451,13 +451,13 @@
                                     <thead>
                                         <tr>
                                             <th>Sito</th>
-                                            <th>N. Inv.</th>
-                                            <th>Tipo</th>
-                                            <th>Definizione</th>
-                                            <th>Corpo Ceramico</th>
+                                            <th>ID</th>
+                                            <th>Form</th>
+                                            <th>Material</th>
+                                            <th>Fabric</th>
                                             <th>Area</th>
                                             <th>US</th>
-                                            <th>Datazione</th>
+                                            <th>Ware</th>
                                             <th>Media</th>
                                         </tr>
                                     </thead>
@@ -735,7 +735,7 @@
                         <td>${m.nr_cassa || '-'}</td>
                         <td>${m.luogo_conservazione || '-'}</td>
                         <td>${m.peso ? m.peso + 'g' : '-'}</td>
-                        <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('INVENTARIO_MATERIALI', ${m.id_invmat})">
+                        <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('REPERTO', ${m.id_invmat})">
                             <i class="bi bi-images"></i>
                         </button></td>
                     </tr>
@@ -753,7 +753,7 @@
 
             const [pottery, types] = await Promise.all([
                 fetchAPI('/pottery/', params),
-                fetchAPI('/pottery/types', { sito: currentSite })
+                fetchAPI('/pottery/forms', { sito: currentSite })
             ]);
 
             const typeSelect = document.getElementById('potteryTypeFilter');
@@ -767,14 +767,14 @@
                 tbody.innerHTML += `
                     <tr>
                         <td>${p.sito || '-'}</td>
-                        <td><strong>${p.numero_inventario || '-'}</strong></td>
-                        <td>${p.tipo_reperto || '-'}</td>
-                        <td>${p.definizione || '-'}</td>
-                        <td>${p.corpo_ceramico || '-'}</td>
+                        <td><strong>${p.id_number || '-'}</strong></td>
+                        <td>${p.form || '-'}</td>
+                        <td>${p.material || '-'}</td>
+                        <td>${p.fabric || '-'}</td>
                         <td>${p.area || '-'}</td>
                         <td>${p.us || '-'}</td>
-                        <td>${p.datazione || '-'}</td>
-                        <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('POTTERY', ${p.id_rep})">
+                        <td>${p.ware || '-'}</td>
+                        <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('CERAMICA', ${p.id_rep})">
                             <i class="bi bi-images"></i>
                         </button></td>
                     </tr>
