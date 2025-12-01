@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: str = "dkioeufik"
     CLOUDINARY_ENABLED: bool = True  # Set to False to use original storage server
 
+    # Backend public URL (for Cloudinary to fetch images through our proxy)
+    BACKEND_PUBLIC_URL: str = "https://pyarchinit-viewer.up.railway.app"
+
     class Config:
         env_file = ".env"
         extra = "allow"

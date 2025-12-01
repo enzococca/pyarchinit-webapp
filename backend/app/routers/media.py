@@ -94,9 +94,23 @@ def get_storage_url(filepath: str, is_thumbnail: bool = True) -> str:
     return f"{base_url}/files/{folder}/{filepath}"
 
 
-def get_cloudinary_url(original_url: str, is_thumbnail: bool = True) -> str:
+def get_public_proxy_url(filepath: str, is_thumbnail: bool = True) -> str:
+    """Generate URL for our public proxy endpoint that Cloudinary can fetch from"""
+    if not filepath:
+        return None
+
+    base_url = settings.BACKEND_PUBLIC_URL.rstrip('/')
+    folder = "thumbnail" if is_thumbnail else "original"
+
+    if filepath.startswith('/'):
+        filepath = filepath[1:]
+
+    return f"{base_url}/api/media/public/{folder}/{filepath}"
+
+
+def get_cloudinary_url(filepath: str, is_thumbnail: bool = True) -> str:
     """Generate Cloudinary fetch URL for optimized image delivery"""
-    if not original_url:
+    if not filepath:
         return None
 
     cloud_name = settings.CLOUDINARY_CLOUD_NAME
@@ -108,9 +122,12 @@ def get_cloudinary_url(original_url: str, is_thumbnail: bool = True) -> str:
         # Full image: larger size, good quality, auto format
         transformations = "f_auto,q_auto:good,w_1200,c_limit"
 
-    # URL encode the original URL
+    # Get URL through our public proxy (which has storage server auth)
+    proxy_url = get_public_proxy_url(filepath, is_thumbnail)
+
+    # URL encode the proxy URL
     import urllib.parse
-    encoded_url = urllib.parse.quote(original_url, safe='')
+    encoded_url = urllib.parse.quote(proxy_url, safe='')
 
     return f"https://res.cloudinary.com/{cloud_name}/image/fetch/{transformations}/{encoded_url}"
 
@@ -120,14 +137,12 @@ def get_media_url(filepath: str, is_thumbnail: bool = True) -> str:
     if not filepath:
         return None
 
-    # Get the original storage URL
-    storage_url = get_storage_url(filepath, is_thumbnail)
+    # If Cloudinary is enabled, use Cloudinary fetch URL (through our public proxy)
+    if settings.CLOUDINARY_ENABLED:
+        return get_cloudinary_url(filepath, is_thumbnail)
 
-    # If Cloudinary is enabled, wrap with Cloudinary fetch URL
-    if settings.CLOUDINARY_ENABLED and storage_url:
-        return get_cloudinary_url(storage_url, is_thumbnail)
-
-    return storage_url
+    # Fallback: direct storage URL (requires auth header)
+    return get_storage_url(filepath, is_thumbnail)
 
 
 async def fetch_and_cache_image(
@@ -164,6 +179,52 @@ async def fetch_and_cache_image(
             cache.set(cache_key, image_data)
 
         return image_data
+
+
+# Public proxy endpoint for Cloudinary to fetch images (no auth required)
+@router.get("/public/{folder}/{filepath:path}")
+async def public_image_proxy(folder: str, filepath: str):
+    """
+    Public proxy endpoint for CDN/Cloudinary to fetch images.
+    This endpoint fetches from the storage server with API key authentication
+    and returns the image publicly (for CDN caching).
+
+    folder: 'thumbnail' or 'original'
+    filepath: the image path
+    """
+    if folder not in ("thumbnail", "original"):
+        raise HTTPException(status_code=400, detail="Invalid folder. Use 'thumbnail' or 'original'")
+
+    # Build storage server URL
+    base_url = settings.STORAGE_SERVER_URL.rstrip('/')
+    url = f"{base_url}/files/{folder}/{filepath}"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {}
+            if settings.STORAGE_API_KEY:
+                headers["X-API-Key"] = settings.STORAGE_API_KEY
+
+            response = await client.get(url, headers=headers, timeout=60.0)
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Image not found or unavailable"
+                )
+
+            content_type = response.headers.get("content-type", "image/jpeg")
+
+            return Response(
+                content=response.content,
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=31536000",  # 1 year cache for CDN
+                    "Access-Control-Allow-Origin": "*"
+                }
+            )
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching image: {str(e)}")
 
 
 @router.get("/for-entity/{entity_type}/{entity_id}", response_model=List[MediaResponse])
