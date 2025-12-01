@@ -429,6 +429,92 @@ async def list_media(
     }
 
 
+@router.get("/search")
+async def search_media_with_associations(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    media_category: Optional[str] = Query(None, description="Filter by category: image, video, 3d"),
+    entity_type: Optional[str] = Query(None, description="Filter by entity type: US, REPERTO, CERAMICA"),
+    filename: Optional[str] = Query(None, description="Search by filename"),
+    db: Session = Depends(get_db)
+):
+    """
+    Search media files with their entity associations.
+    Returns media info along with which entities they belong to.
+    """
+    from sqlalchemy import or_
+
+    # Base query joining media with associations
+    query = db.query(MediaThumb, MediaToEntity).outerjoin(
+        MediaToEntity, MediaThumb.id_media == MediaToEntity.id_media
+    )
+
+    # Filter by entity type
+    if entity_type:
+        query = query.filter(MediaToEntity.entity_type == entity_type.upper())
+
+    # Filter by filename
+    if filename:
+        query = query.filter(MediaThumb.media_filename.ilike(f"%{filename}%"))
+
+    # Get results
+    results = query.offset(skip).limit(limit).all()
+
+    # Process and filter by media_category
+    media_list = []
+    seen_ids = set()
+
+    for thumb, assoc in results:
+        if thumb.id_media in seen_ids:
+            continue
+
+        media_cat = get_media_category(thumb.media_filename, thumb.filetype)
+
+        # Filter by category if specified
+        if media_category and media_category != media_cat:
+            continue
+
+        seen_ids.add(thumb.id_media)
+
+        # Get all associations for this media
+        associations = db.query(MediaToEntity).filter(
+            MediaToEntity.id_media == thumb.id_media
+        ).all()
+
+        entity_info = []
+        for a in associations:
+            entity_info.append({
+                "entity_type": a.entity_type,
+                "id_entity": a.id_entity
+            })
+
+        media_list.append({
+            "id_media": thumb.id_media,
+            "media_filename": thumb.media_filename,
+            "mediatype": thumb.mediatype,
+            "filetype": thumb.filetype,
+            "media_category": media_cat,
+            "thumbnail_url": get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat),
+            "full_url": get_media_url(thumb.path_resize or thumb.filepath, is_thumbnail=False, media_cat=media_cat),
+            "entities": entity_info
+        })
+
+    # Get statistics
+    total_images = sum(1 for m in media_list if m["media_category"] == "image")
+    total_videos = sum(1 for m in media_list if m["media_category"] == "video")
+    total_3d = sum(1 for m in media_list if m["media_category"] == "3d")
+
+    return {
+        "total": len(media_list),
+        "statistics": {
+            "images": total_images,
+            "videos": total_videos,
+            "models_3d": total_3d
+        },
+        "items": media_list
+    }
+
+
 @router.get("/statistics")
 async def get_media_statistics(db: Session = Depends(get_db)):
     """Get media statistics"""

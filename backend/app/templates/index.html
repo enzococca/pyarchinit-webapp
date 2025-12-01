@@ -165,6 +165,68 @@
             background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         }
 
+        /* Media browser cards */
+        .media-card {
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .media-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .media-card .media-preview {
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            overflow: hidden;
+        }
+
+        .media-card .media-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .media-card .media-preview.video-preview {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .media-card .media-preview.model-preview {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .media-card .media-preview i {
+            font-size: 3rem;
+            color: white;
+        }
+
+        .media-card .card-body {
+            padding: 12px;
+        }
+
+        .media-card .media-filename {
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .media-card .media-entity {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .bg-purple {
+            background-color: #764ba2 !important;
+        }
+
         .filter-section {
             background: white;
             padding: 15px;
@@ -573,6 +635,9 @@
                     <a class="nav-link" href="#" data-section="inventory">
                         <i class="bi bi-archive"></i>Warehouse Inventory
                     </a>
+                    <a class="nav-link" href="#" data-section="media">
+                        <i class="bi bi-collection-play"></i>Media Browser
+                    </a>
                     <hr>
                     <a class="nav-link" href="#" data-section="admin" id="adminMenuItem" style="display: none;">
                         <i class="bi bi-gear"></i>User Management
@@ -954,6 +1019,64 @@
                     </div>
                 </section>
 
+                <!-- Media Browser Section -->
+                <section id="media-section" class="content-section" style="display: none;">
+                    <h2 class="mb-4"><i class="bi bi-collection-play me-2"></i>Media Browser</h2>
+
+                    <!-- Search Panel -->
+                    <div class="filter-section">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Media Type</label>
+                                <select class="form-select" id="mediaTypeFilter">
+                                    <option value="">All Types</option>
+                                    <option value="image">🖼️ Images</option>
+                                    <option value="video">🎬 Videos</option>
+                                    <option value="3d">📦 3D Models</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Entity Type</label>
+                                <select class="form-select" id="mediaEntityFilter">
+                                    <option value="">All Entities</option>
+                                    <option value="US">Stratigraphic Units (US)</option>
+                                    <option value="REPERTO">Materials (Reperto)</option>
+                                    <option value="CERAMICA">Pottery (Ceramica)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Search filename</label>
+                                <input type="text" class="form-control" id="mediaSearchText" placeholder="Search by filename...">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary w-100" onclick="searchMedia()">
+                                    <i class="bi bi-search me-1"></i>Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Media Statistics -->
+                    <div id="mediaStats" class="row mb-4"></div>
+
+                    <!-- Media Results -->
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-grid me-2"></i>Media Files</span>
+                            <span id="mediaResultsCount" class="badge bg-light text-dark">0 results</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="mediaResultsGrid" class="row g-3">
+                                <!-- Media cards will be populated here -->
+                            </div>
+                            <div id="mediaNoResults" class="text-center text-muted py-5" style="display: none;">
+                                <i class="bi bi-inbox display-4"></i>
+                                <p class="mt-2">No media found. Try adjusting your filters.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Admin Section -->
                 <section id="admin-section" class="content-section" style="display: none;">
                     <h2 class="mb-4"><i class="bi bi-gear me-2"></i>User Management</h2>
@@ -1150,6 +1273,9 @@
         let materialsChart = null;
         let usChart = null;
         let allMaterialsData = [];
+        let allUSData = [];
+        let allPotteryData = [];
+        let allMediaData = [];
         let currentSearchResults = [];
         let currentBoxContents = [];
         let currentUser = null;
@@ -1257,6 +1383,7 @@
                 case 'materiali': loadMateriali(); break;
                 case 'pottery': loadPottery(); break;
                 case 'inventory': loadInventory(); break;
+                case 'media': loadMediaBrowser(); break;
                 case 'admin': loadUsers(); break;
             }
         }
@@ -1360,6 +1487,9 @@
                 fetchAPI('/us/periodi', { sito: currentSite })
             ]);
 
+            // Store all data for filtering
+            allUSData = us || [];
+
             // Populate filters
             const areaSelect = document.getElementById('usAreaFilter');
             areaSelect.innerHTML = '<option value="">All Areas</option>';
@@ -1369,10 +1499,15 @@
             periodSelect.innerHTML = '<option value="">All Periods</option>';
             periodi?.forEach(p => periodSelect.innerHTML += `<option value="${p}">${p}</option>`);
 
+            renderUSTable(allUSData);
+            hideLoading();
+        }
+
+        function renderUSTable(data) {
             const tbody = document.querySelector('#usTable tbody');
             tbody.innerHTML = '';
 
-            us?.forEach(u => {
+            data?.forEach(u => {
                 tbody.innerHTML += `
                     <tr>
                         <td>${u.sito || '-'}</td>
@@ -1389,8 +1524,31 @@
                     </tr>
                 `;
             });
+        }
 
-            hideLoading();
+        function filterUS() {
+            const area = document.getElementById('usAreaFilter').value;
+            const period = document.getElementById('usPeriodFilter').value;
+            const search = document.getElementById('usSearch').value.toLowerCase();
+
+            let filtered = allUSData;
+
+            if (area) {
+                filtered = filtered.filter(u => u.area === area);
+            }
+            if (period) {
+                filtered = filtered.filter(u => u.periodo_iniziale === period);
+            }
+            if (search) {
+                filtered = filtered.filter(u =>
+                    (u.us && u.us.toString().toLowerCase().includes(search)) ||
+                    (u.d_stratigrafica && u.d_stratigrafica.toLowerCase().includes(search)) ||
+                    (u.d_interpretativa && u.d_interpretativa.toLowerCase().includes(search)) ||
+                    (u.descrizione && u.descrizione.toLowerCase().includes(search))
+                );
+            }
+
+            renderUSTable(filtered);
         }
 
         // Load Materials
@@ -1406,6 +1564,9 @@
                 fetchAPI('/materiali/boxes', { sito: currentSite })
             ]);
 
+            // Store for filtering (also used by inventory section)
+            allMaterialsData = materiali || [];
+
             // Populate filters
             const typeSelect = document.getElementById('materialiTypeFilter');
             typeSelect.innerHTML = '<option value="">All Types</option>';
@@ -1420,10 +1581,15 @@
             const uniqueBoxes = [...new Set(boxes?.map(b => b.nr_cassa))].sort((a,b) => a-b);
             uniqueBoxes?.forEach(b => boxSelect.innerHTML += `<option value="${b}">Box ${b}</option>`);
 
+            renderMaterialiTable(allMaterialsData);
+            hideLoading();
+        }
+
+        function renderMaterialiTable(data) {
             const tbody = document.querySelector('#materialiTable tbody');
             tbody.innerHTML = '';
 
-            materiali?.forEach(m => {
+            data?.forEach(m => {
                 tbody.innerHTML += `
                     <tr>
                         <td>${m.sito || '-'}</td>
@@ -1441,8 +1607,35 @@
                     </tr>
                 `;
             });
+        }
 
-            hideLoading();
+        function filterMateriali() {
+            const type = document.getElementById('materialiTypeFilter').value;
+            const box = document.getElementById('materialiBoxFilter').value;
+            const storage = document.getElementById('materialiStorageFilter').value;
+            const search = document.getElementById('materialiSearch').value.toLowerCase();
+
+            let filtered = allMaterialsData;
+
+            if (type) {
+                filtered = filtered.filter(m => m.tipo_reperto === type);
+            }
+            if (box) {
+                filtered = filtered.filter(m => m.nr_cassa == box);
+            }
+            if (storage) {
+                filtered = filtered.filter(m => m.luogo_conservazione === storage);
+            }
+            if (search) {
+                filtered = filtered.filter(m =>
+                    (m.numero_inventario && m.numero_inventario.toString().includes(search)) ||
+                    (m.definizione && m.definizione.toLowerCase().includes(search)) ||
+                    (m.descrizione && m.descrizione.toLowerCase().includes(search)) ||
+                    (m.tipo_reperto && m.tipo_reperto.toLowerCase().includes(search))
+                );
+            }
+
+            renderMaterialiTable(filtered);
         }
 
         // Load Pottery
@@ -1456,14 +1649,22 @@
                 fetchAPI('/pottery/forms', { sito: currentSite })
             ]);
 
+            // Store for filtering
+            allPotteryData = pottery || [];
+
             const typeSelect = document.getElementById('potteryTypeFilter');
             typeSelect.innerHTML = '<option value="">All Forms</option>';
             types?.forEach(t => typeSelect.innerHTML += `<option value="${t}">${t}</option>`);
 
+            renderPotteryTable(allPotteryData);
+            hideLoading();
+        }
+
+        function renderPotteryTable(data) {
             const tbody = document.querySelector('#potteryTable tbody');
             tbody.innerHTML = '';
 
-            pottery?.forEach(p => {
+            data?.forEach(p => {
                 tbody.innerHTML += `
                     <tr>
                         <td>${p.sito || '-'}</td>
@@ -1480,8 +1681,28 @@
                     </tr>
                 `;
             });
+        }
 
-            hideLoading();
+        function filterPottery() {
+            const form = document.getElementById('potteryTypeFilter').value;
+            const search = document.getElementById('potterySearch').value.toLowerCase();
+
+            let filtered = allPotteryData;
+
+            if (form) {
+                filtered = filtered.filter(p => p.form === form);
+            }
+            if (search) {
+                filtered = filtered.filter(p =>
+                    (p.id_number && p.id_number.toString().includes(search)) ||
+                    (p.form && p.form.toLowerCase().includes(search)) ||
+                    (p.material && p.material.toLowerCase().includes(search)) ||
+                    (p.fabric && p.fabric.toLowerCase().includes(search)) ||
+                    (p.ware && p.ware.toLowerCase().includes(search))
+                );
+            }
+
+            renderPotteryTable(filtered);
         }
 
         // Load Inventory - Enhanced
@@ -2267,9 +2488,218 @@
             });
         }
 
+        // Media Browser Functions
+        async function loadMediaBrowser() {
+            showLoading();
+
+            // Load initial media list
+            const result = await fetchAPI('/media/search', { limit: 100 });
+
+            if (result) {
+                allMediaData = result.items || [];
+
+                // Show statistics
+                const statsContainer = document.getElementById('mediaStats');
+                statsContainer.innerHTML = `
+                    <div class="col-md-3">
+                        <div class="quick-stat">
+                            <div class="number">${result.total || 0}</div>
+                            <div class="label">Total Media</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="quick-stat">
+                            <div class="number">${result.statistics?.images || 0}</div>
+                            <div class="label">🖼️ Images</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="quick-stat">
+                            <div class="number">${result.statistics?.videos || 0}</div>
+                            <div class="label">🎬 Videos</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="quick-stat">
+                            <div class="number">${result.statistics?.models_3d || 0}</div>
+                            <div class="label">📦 3D Models</div>
+                        </div>
+                    </div>
+                `;
+
+                renderMediaGrid(allMediaData);
+            }
+
+            hideLoading();
+        }
+
+        async function searchMedia() {
+            showLoading();
+
+            const mediaType = document.getElementById('mediaTypeFilter').value;
+            const entityType = document.getElementById('mediaEntityFilter').value;
+            const searchText = document.getElementById('mediaSearchText').value;
+
+            const params = { limit: 200 };
+            if (mediaType) params.media_category = mediaType;
+            if (entityType) params.entity_type = entityType;
+            if (searchText) params.filename = searchText;
+
+            const result = await fetchAPI('/media/search', params);
+
+            if (result) {
+                allMediaData = result.items || [];
+                renderMediaGrid(allMediaData);
+
+                // Update results count
+                document.getElementById('mediaResultsCount').textContent = `${result.total || 0} results`;
+            }
+
+            hideLoading();
+        }
+
+        function renderMediaGrid(mediaList) {
+            const grid = document.getElementById('mediaResultsGrid');
+            const noResults = document.getElementById('mediaNoResults');
+
+            if (!mediaList || mediaList.length === 0) {
+                grid.innerHTML = '';
+                noResults.style.display = 'block';
+                return;
+            }
+
+            noResults.style.display = 'none';
+            grid.innerHTML = '';
+
+            mediaList.forEach(media => {
+                const category = media.media_category || 'image';
+                let previewHtml = '';
+                let categoryIcon = '';
+                let categoryBadge = '';
+
+                if (category === 'image') {
+                    previewHtml = `<img src="${media.thumbnail_url}" alt="${media.media_filename}" loading="lazy">`;
+                    categoryIcon = 'bi-image';
+                    categoryBadge = 'bg-primary';
+                } else if (category === 'video') {
+                    previewHtml = `<div class="media-preview video-preview"><i class="bi bi-play-circle"></i></div>`;
+                    categoryIcon = 'bi-camera-video';
+                    categoryBadge = 'bg-purple';
+                } else if (category === '3d') {
+                    previewHtml = `<div class="media-preview model-preview"><i class="bi bi-box"></i></div>`;
+                    categoryIcon = 'bi-box';
+                    categoryBadge = 'bg-success';
+                }
+
+                // Build entity info string
+                let entityInfo = 'No associations';
+                if (media.entities && media.entities.length > 0) {
+                    const entityStrings = media.entities.map(e => `${e.entity_type} #${e.id_entity}`);
+                    entityInfo = entityStrings.join(', ');
+                }
+
+                grid.innerHTML += `
+                    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                        <div class="card media-card" onclick="openMediaDirectly(${media.id_media}, '${category}', '${media.full_url}')">
+                            <div class="media-preview">
+                                ${category === 'image' ? `<img src="${media.thumbnail_url}" alt="${media.media_filename || 'Media'}" loading="lazy">` : ''}
+                                ${category === 'video' ? '<i class="bi bi-play-circle"></i>' : ''}
+                                ${category === '3d' ? '<i class="bi bi-box"></i>' : ''}
+                            </div>
+                            <div class="card-body">
+                                <div class="media-filename" title="${media.media_filename || 'Unknown'}">
+                                    ${media.media_filename || 'Unknown'}
+                                </div>
+                                <div class="media-entity">
+                                    <span class="badge ${categoryBadge} me-1"><i class="bi ${categoryIcon}"></i></span>
+                                    <small>${entityInfo}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function openMediaDirectly(mediaId, category, fullUrl) {
+            // Hide all viewers
+            document.getElementById('imageViewer').style.display = 'none';
+            document.getElementById('videoViewer').style.display = 'none';
+            document.getElementById('modelViewer').style.display = 'none';
+
+            // Stop video if playing
+            const video = document.getElementById('modalVideo');
+            video.pause();
+            video.src = '';
+
+            // Clear gallery for single view
+            document.getElementById('mediaGallery').innerHTML = '';
+            document.getElementById('mediaInfo').innerHTML = `<strong>Media ID: ${mediaId}</strong> | Type: <span class="badge bg-secondary">${category}</span>`;
+
+            if (category === 'image') {
+                document.getElementById('imageViewer').style.display = 'block';
+                document.getElementById('modalImage').src = fullUrl;
+            } else if (category === 'video') {
+                document.getElementById('videoViewer').style.display = 'block';
+                const videoEl = document.getElementById('modalVideo');
+                videoEl.src = fullUrl;
+                videoEl.load();
+            } else if (category === '3d') {
+                document.getElementById('modelViewer').style.display = 'block';
+                document.getElementById('modal3DModel').src = fullUrl;
+            }
+
+            // Hide category filter for direct view
+            document.getElementById('mediaCategoryFilter').style.display = 'none';
+
+            new bootstrap.Modal(document.getElementById('mediaModal')).show();
+        }
+
+        // Initialize event listeners for filters
+        function initializeFilterListeners() {
+            // US filters
+            document.getElementById('usAreaFilter')?.addEventListener('change', filterUS);
+            document.getElementById('usPeriodFilter')?.addEventListener('change', filterUS);
+            document.getElementById('usSearch')?.addEventListener('input', debounce(filterUS, 300));
+
+            // Materials filters
+            document.getElementById('materialiTypeFilter')?.addEventListener('change', filterMateriali);
+            document.getElementById('materialiBoxFilter')?.addEventListener('change', filterMateriali);
+            document.getElementById('materialiStorageFilter')?.addEventListener('change', filterMateriali);
+            document.getElementById('materialiSearch')?.addEventListener('input', debounce(filterMateriali, 300));
+
+            // Pottery filters
+            document.getElementById('potteryTypeFilter')?.addEventListener('change', filterPottery);
+            document.getElementById('potterySearch')?.addEventListener('input', debounce(filterPottery, 300));
+
+            // Media search - Enter key
+            document.getElementById('mediaSearchText')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchMedia();
+            });
+        }
+
+        // Debounce helper
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Reset category filter visibility when modal closes
+        document.getElementById('mediaModal')?.addEventListener('hidden.bs.modal', () => {
+            document.getElementById('mediaCategoryFilter').style.display = 'flex';
+        });
+
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             await loadSiteSelector();
+            initializeFilterListeners();
             showSection('dashboard');
         });
     </script>
