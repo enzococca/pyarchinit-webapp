@@ -79,8 +79,8 @@ full_image_cache = SimpleTTLCache(maxsize=100, ttl=1800)  # 30 min
 cache_lock = asyncio.Lock()
 
 
-def get_media_url(filepath: str, is_thumbnail: bool = True) -> str:
-    """Generate full URL for media file from storage server"""
+def get_storage_url(filepath: str, is_thumbnail: bool = True) -> str:
+    """Generate direct URL for media file from storage server"""
     if not filepath:
         return None
 
@@ -92,6 +92,42 @@ def get_media_url(filepath: str, is_thumbnail: bool = True) -> str:
         filepath = filepath[1:]
 
     return f"{base_url}/files/{folder}/{filepath}"
+
+
+def get_cloudinary_url(original_url: str, is_thumbnail: bool = True) -> str:
+    """Generate Cloudinary fetch URL for optimized image delivery"""
+    if not original_url:
+        return None
+
+    cloud_name = settings.CLOUDINARY_CLOUD_NAME
+
+    if is_thumbnail:
+        # Thumbnail: small size, auto format, auto quality
+        transformations = "f_auto,q_auto,w_150,h_150,c_fill"
+    else:
+        # Full image: larger size, good quality, auto format
+        transformations = "f_auto,q_auto:good,w_1200,c_limit"
+
+    # URL encode the original URL
+    import urllib.parse
+    encoded_url = urllib.parse.quote(original_url, safe='')
+
+    return f"https://res.cloudinary.com/{cloud_name}/image/fetch/{transformations}/{encoded_url}"
+
+
+def get_media_url(filepath: str, is_thumbnail: bool = True) -> str:
+    """Generate URL for media file - uses Cloudinary if enabled"""
+    if not filepath:
+        return None
+
+    # Get the original storage URL
+    storage_url = get_storage_url(filepath, is_thumbnail)
+
+    # If Cloudinary is enabled, wrap with Cloudinary fetch URL
+    if settings.CLOUDINARY_ENABLED and storage_url:
+        return get_cloudinary_url(storage_url, is_thumbnail)
+
+    return storage_url
 
 
 async def fetch_and_cache_image(
@@ -169,7 +205,9 @@ async def get_media_for_entity(
 
 @router.get("/thumbnail/{media_id}")
 async def get_thumbnail(media_id: int, db: Session = Depends(get_db)):
-    """Proxy endpoint to get thumbnail from storage server (with caching)"""
+    """Get thumbnail - redirects to Cloudinary if enabled, otherwise proxies"""
+    from fastapi.responses import RedirectResponse
+
     thumb = db.query(MediaThumb).filter(MediaThumb.id_media == media_id).first()
     if not thumb:
         raise HTTPException(status_code=404, detail="Media not found")
@@ -178,6 +216,11 @@ async def get_thumbnail(media_id: int, db: Session = Depends(get_db)):
     if not url:
         raise HTTPException(status_code=404, detail="Thumbnail path not available")
 
+    # If Cloudinary is enabled, redirect directly to Cloudinary URL
+    if settings.CLOUDINARY_ENABLED:
+        return RedirectResponse(url=url, status_code=302)
+
+    # Otherwise, proxy through backend with caching
     cache_key = f"thumb_{media_id}"
 
     try:
@@ -199,7 +242,9 @@ async def get_thumbnail(media_id: int, db: Session = Depends(get_db)):
 
 @router.get("/full/{media_id}")
 async def get_full_image(media_id: int, db: Session = Depends(get_db)):
-    """Proxy endpoint to get full image from storage server (with caching)"""
+    """Get full image - redirects to Cloudinary if enabled, otherwise proxies"""
+    from fastapi.responses import RedirectResponse
+
     thumb = db.query(MediaThumb).filter(MediaThumb.id_media == media_id).first()
     if not thumb:
         raise HTTPException(status_code=404, detail="Media not found")
@@ -209,6 +254,11 @@ async def get_full_image(media_id: int, db: Session = Depends(get_db)):
     if not url:
         raise HTTPException(status_code=404, detail="Image path not available")
 
+    # If Cloudinary is enabled, redirect directly to Cloudinary URL
+    if settings.CLOUDINARY_ENABLED:
+        return RedirectResponse(url=url, status_code=302)
+
+    # Otherwise, proxy through backend with caching
     cache_key = f"full_{media_id}"
 
     try:
@@ -230,8 +280,12 @@ async def get_full_image(media_id: int, db: Session = Depends(get_db)):
 
 @router.get("/cache/stats")
 async def get_cache_stats():
-    """Get cache statistics"""
+    """Get cache and CDN statistics"""
     return {
+        "cloudinary": {
+            "enabled": settings.CLOUDINARY_ENABLED,
+            "cloud_name": settings.CLOUDINARY_CLOUD_NAME if settings.CLOUDINARY_ENABLED else None
+        },
         "thumbnail_cache": {
             "size": len(thumbnail_cache),
             "maxsize": thumbnail_cache.maxsize,

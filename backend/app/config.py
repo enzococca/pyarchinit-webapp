@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
 
+    # Cloudinary settings (for image optimization)
+    CLOUDINARY_CLOUD_NAME: str = "dkioeufik"
+    CLOUDINARY_ENABLED: bool = True  # Set to False to use original storage server
+
     class Config:
         env_file = ".env"
         extra = "allow"
