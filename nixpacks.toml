@@ -1,8 +1,20 @@
+# Railway Nixpacks configuration
 [phases.setup]
 nixPkgs = ["python312", "gcc"]
 
 [phases.install]
-cmds = ["pip install --upgrade pip", "pip install -r backend/requirements.txt --no-cache-dir"]
+cmds = [
+    "python -m venv /opt/venv",
+    "/opt/venv/bin/pip install --upgrade pip",
+    "/opt/venv/bin/pip install -r backend/requirements.txt --no-cache-dir"
+]
+
+[phases.build]
+cmds = ["echo 'Build complete'"]
 
 [start]
-cmd = "cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+cmd = "/opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+
+[variables]
+PYTHONUNBUFFERED = "1"
+PATH = "/opt/venv/bin:$PATH"
