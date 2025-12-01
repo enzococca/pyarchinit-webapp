@@ -220,17 +220,22 @@
 
         /* Responsive - Tablet */
         @media (max-width: 991px) {
-            .sidebar {
-                position: fixed;
+            .col-md-2.sidebar {
+                position: fixed !important;
                 left: -280px;
                 top: 56px;
-                width: 280px;
+                width: 280px !important;
+                max-width: 280px !important;
                 height: calc(100vh - 56px);
                 z-index: 1040;
                 transition: left 0.3s ease;
                 box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+                display: block !important;
+                flex: none !important;
+                overflow-y: auto;
+                background: white;
             }
-            .sidebar.show {
+            .col-md-2.sidebar.show {
                 left: 0;
             }
             .sidebar-overlay {
@@ -253,14 +258,13 @@
             }
             .content-area {
                 padding: 15px;
-            }
-            .col-md-2 {
-                display: none;
+                margin-left: 0 !important;
             }
             .col-md-10 {
-                width: 100%;
-                max-width: 100%;
-                flex: 0 0 100%;
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+                margin-left: 0 !important;
             }
             .stat-card .stat-value {
                 font-size: 1.5rem;
@@ -2017,7 +2021,7 @@
 
         // Mobile sidebar toggle
         const sidebarToggle = document.getElementById('sidebarToggle');
-        const sidebar = document.querySelector('.sidebar');
+        const sidebar = document.querySelector('.col-md-2.sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
 
         if (sidebarToggle && sidebar) {
@@ -2043,7 +2047,7 @@
             });
 
             // Close sidebar when clicking a nav link on mobile
-            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+            document.querySelectorAll('.col-md-2.sidebar .nav-link').forEach(link => {
                 link.addEventListener('click', () => {
                     if (window.innerWidth <= 991) {
                         sidebar.classList.remove('show');
