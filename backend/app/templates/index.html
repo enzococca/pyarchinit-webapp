@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyArchInit Web Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4472C4;
+            --secondary-color: #6c757d;
+            --bg-light: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-light);
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), #2e5494);
+        }
+
+        .sidebar {
+            background-color: white;
+            min-height: calc(100vh - 56px);
+            border-right: 1px solid #dee2e6;
+        }
+
+        .sidebar .nav-link {
+            color: #333;
+            border-radius: 8px;
+            margin: 2px 8px;
+            transition: all 0.2s;
+        }
+
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 10px;
+        }
+
+        .content-area {
+            padding: 20px;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border-radius: 12px;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), #2e5494);
+            color: white;
+            border-radius: 12px 12px 0 0 !important;
+        }
+
+        .stat-card {
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .table th {
+            position: sticky;
+            top: 0;
+            background: var(--primary-color);
+            color: white;
+            z-index: 10;
+        }
+
+        .media-thumbnail {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .media-thumbnail:hover {
+            transform: scale(1.1);
+        }
+
+        .media-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .filter-section {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .export-btn {
+            margin-right: 5px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .modal-lg {
+            max-width: 90%;
+        }
+
+        #mediaModal .modal-body img {
+            max-width: 100%;
+            max-height: 80vh;
+        }
+
+        .box-card {
+            border-left: 4px solid #28a745;
+            margin-bottom: 10px;
+        }
+
+        .storage-section {
+            margin-bottom: 30px;
+        }
+
+        .storage-header {
+            background: #e9ecef;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-globe-americas me-2"></i>PyArchInit Web Viewer
+            </a>
+            <div class="d-flex align-items-center text-white">
+                <select id="siteSelector" class="form-select form-select-sm me-3" style="width: 200px;">
+                    <option value="">Tutti i siti</option>
+                </select>
+                <span id="connectionStatus" class="badge bg-success">
+                    <i class="bi bi-check-circle me-1"></i>Connesso
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar py-3">
+                <nav class="nav flex-column">
+                    <a class="nav-link active" href="#" data-section="dashboard">
+                        <i class="bi bi-speedometer2"></i>Dashboard
+                    </a>
+                    <a class="nav-link" href="#" data-section="sites">
+                        <i class="bi bi-geo-alt"></i>Siti
+                    </a>
+                    <a class="nav-link" href="#" data-section="us">
+                        <i class="bi bi-layers"></i>Unità Stratigrafiche
+                    </a>
+                    <a class="nav-link" href="#" data-section="materiali">
+                        <i class="bi bi-box-seam"></i>Materiali
+                    </a>
+                    <a class="nav-link" href="#" data-section="pottery">
+                        <i class="bi bi-cup"></i>Ceramica
+                    </a>
+                    <a class="nav-link" href="#" data-section="inventory">
+                        <i class="bi bi-archive"></i>Inventario Magazzino
+                    </a>
+                    <hr>
+                    <a class="nav-link" href="/api/docs" target="_blank">
+                        <i class="bi bi-code-square"></i>API Docs
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10 content-area">
+                <!-- Loading indicator -->
+                <div class="loading" id="loadingIndicator">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Caricamento...</span>
+                    </div>
+                    <p class="mt-2">Caricamento dati...</p>
+                </div>
+
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="content-section">
+                    <h2 class="mb-4"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h2>
+
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">Siti</h6>
+                                    <p class="stat-value" id="statSites">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">Unità Stratigrafiche</h6>
+                                    <p class="stat-value" id="statUS">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">Materiali</h6>
+                                    <p class="stat-value" id="statMateriali">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">Ceramica</h6>
+                                    <p class="stat-value" id="statPottery">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bar-chart me-2"></i>Materiali per Tipo
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="materialsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-pie-chart me-2"></i>US per Periodo
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="usChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sites Section -->
+                <section id="sites-section" class="content-section" style="display: none;">
+                    <h2 class="mb-4"><i class="bi bi-geo-alt me-2"></i>Siti Archeologici</h2>
+
+                    <div class="filter-section">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="sitesSearch" placeholder="Cerca sito...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table table-hover" id="sitesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Sito</th>
+                                            <th>Nazione</th>
+                                            <th>Regione</th>
+                                            <th>Provincia</th>
+                                            <th>Comune</th>
+                                            <th>Definizione</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- US Section -->
+                <section id="us-section" class="content-section" style="display: none;">
+                    <h2 class="mb-4"><i class="bi bi-layers me-2"></i>Unità Stratigrafiche</h2>
+
+                    <div class="filter-section">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <select class="form-select" id="usAreaFilter">
+                                    <option value="">Tutte le aree</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" id="usPeriodFilter">
+                                    <option value="">Tutti i periodi</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" id="usSearch" placeholder="Cerca...">
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-success export-btn" onclick="exportData('us', 'excel')">
+                                    <i class="bi bi-file-earmark-excel"></i> Excel
+                                </button>
+                                <button class="btn btn-danger export-btn" onclick="exportData('us', 'pdf')">
+                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table table-hover" id="usTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Sito</th>
+                                            <th>Area</th>
+                                            <th>US</th>
+                                            <th>Def. Stratigrafica</th>
+                                            <th>Def. Interpretativa</th>
+                                            <th>Periodo</th>
+                                            <th>Fase</th>
+                                            <th>Datazione</th>
+                                            <th>Media</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Materiali Section -->
+                <section id="materiali-section" class="content-section" style="display: none;">
+                    <h2 class="mb-4"><i class="bi bi-box-seam me-2"></i>Inventario Materiali</h2>
+
+                    <div class="filter-section">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <select class="form-select" id="materialiTypeFilter">
+                                    <option value="">Tutti i tipi</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="materialiBoxFilter">
+                                    <option value="">Tutte le casse</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="materialiStorageFilter">
+                                    <option value="">Tutti i depositi</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" id="materialiSearch" placeholder="Cerca...">
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-success export-btn" onclick="exportData('materiali', 'excel')">
+                                    <i class="bi bi-file-earmark-excel"></i> Excel
+                                </button>
+                                <button class="btn btn-danger export-btn" onclick="exportData('materiali', 'pdf')">
+                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table table-hover" id="materialiTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Sito</th>
+                                            <th>N. Inv.</th>
+                                            <th>Tipo</th>
+                                            <th>Definizione</th>
+                                            <th>Area</th>
+                                            <th>US</th>
+                                            <th>Cassa</th>
+                                            <th>Deposito</th>
+                                            <th>Peso</th>
+                                            <th>Media</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Pottery Section -->
+                <section id="pottery-section" class="content-section" style="display: none;">
+                    <h2 class="mb-4"><i class="bi bi-cup me-2"></i>Ceramica</h2>
+
+                    <div class="filter-section">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <select class="form-select" id="potteryTypeFilter">
+                                    <option value="">Tutti i tipi</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" id="potterySearch" placeholder="Cerca...">
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-success export-btn" onclick="exportData('pottery', 'excel')">
+                                    <i class="bi bi-file-earmark-excel"></i> Excel
+                                </button>
+                                <button class="btn btn-danger export-btn" onclick="exportData('pottery', 'pdf')">
+                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table table-hover" id="potteryTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Sito</th>
+                                            <th>N. Inv.</th>
+                                            <th>Tipo</th>
+                                            <th>Definizione</th>
+                                            <th>Corpo Ceramico</th>
+                                            <th>Area</th>
+                                            <th>US</th>
+                                            <th>Datazione</th>
+                                            <th>Media</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Inventory Section -->
+                <section id="inventory-section" class="content-section" style="display: none;">
+                    <h2 class="mb-4"><i class="bi bi-archive me-2"></i>Inventario Magazzino</h2>
+
+                    <div class="mb-3">
+                        <button class="btn btn-success" onclick="exportData('materiali/summary', 'excel')">
+                            <i class="bi bi-file-earmark-excel me-1"></i>Esporta Riepilogo Excel
+                        </button>
+                    </div>
+
+                    <div id="inventorySummary">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Modal -->
+    <div class="modal fade" id="mediaModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Visualizzatore Media</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" src="" alt="Media" class="img-fluid">
+                </div>
+                <div class="modal-footer">
+                    <div id="mediaGallery" class="media-gallery"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // API Base URL
+        const API_BASE = '/api';
+        let currentSite = '';
+        let materialsChart = null;
+        let usChart = null;
+
+        // Utility functions
+        function showLoading() {
+            document.getElementById('loadingIndicator').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').classList.remove('active');
+        }
+
+        async function fetchAPI(endpoint, params = {}) {
+            const url = new URL(API_BASE + endpoint, window.location.origin);
+            Object.keys(params).forEach(key => {
+                if (params[key]) url.searchParams.append(key, params[key]);
+            });
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                return null;
+            }
+        }
+
+        // Navigation
+        document.querySelectorAll('.sidebar .nav-link[data-section]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = e.target.closest('.nav-link').dataset.section;
+                showSection(section);
+            });
+        });
+
+        function showSection(section) {
+            // Update nav
+            document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+            document.querySelector(`.sidebar .nav-link[data-section="${section}"]`).classList.add('active');
+
+            // Show section
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            document.getElementById(`${section}-section`).style.display = 'block';
+
+            // Load data
+            switch(section) {
+                case 'dashboard': loadDashboard(); break;
+                case 'sites': loadSites(); break;
+                case 'us': loadUS(); break;
+                case 'materiali': loadMateriali(); break;
+                case 'pottery': loadPottery(); break;
+                case 'inventory': loadInventory(); break;
+            }
+        }
+
+        // Dashboard
+        async function loadDashboard() {
+            showLoading();
+
+            const params = currentSite ? { sito: currentSite } : {};
+
+            // Load statistics
+            const [usStats, matStats, potStats, sites] = await Promise.all([
+                fetchAPI('/us/statistics', params),
+                fetchAPI('/materiali/statistics', params),
+                fetchAPI('/pottery/statistics', params),
+                fetchAPI('/sites/')
+            ]);
+
+            document.getElementById('statSites').textContent = sites?.length || 0;
+            document.getElementById('statUS').textContent = usStats?.total || 0;
+            document.getElementById('statMateriali').textContent = matStats?.total || 0;
+            document.getElementById('statPottery').textContent = potStats?.total || 0;
+
+            // Charts
+            if (matStats?.by_type) {
+                if (materialsChart) materialsChart.destroy();
+                const ctx1 = document.getElementById('materialsChart').getContext('2d');
+                materialsChart = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(matStats.by_type).slice(0, 10),
+                        datasets: [{
+                            label: 'Quantità',
+                            data: Object.values(matStats.by_type).slice(0, 10),
+                            backgroundColor: '#4472C4'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            if (usStats?.by_period) {
+                if (usChart) usChart.destroy();
+                const ctx2 = document.getElementById('usChart').getContext('2d');
+                usChart = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(usStats.by_period),
+                        datasets: [{
+                            data: Object.values(usStats.by_period),
+                            backgroundColor: ['#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { position: 'right' } }
+                    }
+                });
+            }
+
+            hideLoading();
+        }
+
+        // Load Sites
+        async function loadSites() {
+            showLoading();
+            const sites = await fetchAPI('/sites/', { limit: 500 });
+
+            const tbody = document.querySelector('#sitesTable tbody');
+            tbody.innerHTML = '';
+
+            sites?.forEach(site => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${site.id_sito}</td>
+                        <td><strong>${site.sito || '-'}</strong></td>
+                        <td>${site.nazione || '-'}</td>
+                        <td>${site.regione || '-'}</td>
+                        <td>${site.provincia || '-'}</td>
+                        <td>${site.comune || '-'}</td>
+                        <td>${site.definizione_sito || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            hideLoading();
+        }
+
+        // Load US
+        async function loadUS() {
+            showLoading();
+            const params = { limit: 500 };
+            if (currentSite) params.sito = currentSite;
+
+            const [us, areas, periodi] = await Promise.all([
+                fetchAPI('/us/', params),
+                fetchAPI('/us/areas', { sito: currentSite }),
+                fetchAPI('/us/periodi', { sito: currentSite })
+            ]);
+
+            // Populate filters
+            const areaSelect = document.getElementById('usAreaFilter');
+            areaSelect.innerHTML = '<option value="">Tutte le aree</option>';
+            areas?.forEach(a => areaSelect.innerHTML += `<option value="${a}">${a}</option>`);
+
+            const periodSelect = document.getElementById('usPeriodFilter');
+            periodSelect.innerHTML = '<option value="">Tutti i periodi</option>';
+            periodi?.forEach(p => periodSelect.innerHTML += `<option value="${p}">${p}</option>`);
+
+            const tbody = document.querySelector('#usTable tbody');
+            tbody.innerHTML = '';
+
+            us?.forEach(u => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.sito || '-'}</td>
+                        <td>${u.area || '-'}</td>
+                        <td><strong>${u.us || '-'}</strong></td>
+                        <td>${u.d_stratigrafica || '-'}</td>
+                        <td>${u.d_interpretativa || '-'}</td>
+                        <td>${u.periodo_iniziale || '-'}</td>
+                        <td>${u.fase_iniziale || '-'}</td>
+                        <td>${u.datazione || '-'}</td>
+                        <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('US', ${u.id_us})">
+                            <i class="bi bi-images"></i>
+                        </button></td>
+                    </tr>
+                `;
+            });
+
+            hideLoading();
+        }
+
+        // Load Materiali
+        async function loadMateriali() {
+            showLoading();
+            const params = { limit: 500 };
+            if (currentSite) params.sito = currentSite;
+
+            const [materiali, types, storages] = await Promise.all([
+                fetchAPI('/materiali/', params),
+                fetchAPI('/materiali/types', { sito: currentSite }),
+                fetchAPI('/materiali/storage-locations', { sito: currentSite })
+            ]);
+
+            // Populate filters
+            const typeSelect = document.getElementById('materialiTypeFilter');
+            typeSelect.innerHTML = '<option value="">Tutti i tipi</option>';
+            types?.forEach(t => typeSelect.innerHTML += `<option value="${t}">${t}</option>`);
+
+            const storageSelect = document.getElementById('materialiStorageFilter');
+            storageSelect.innerHTML = '<option value="">Tutti i depositi</option>';
+            storages?.forEach(s => storageSelect.innerHTML += `<option value="${s}">${s}</option>`);
+
+            const tbody = document.querySelector('#materialiTable tbody');
+            tbody.innerHTML = '';
+
+            materiali?.forEach(m => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${m.sito || '-'}</td>
+                        <td><strong>${m.numero_inventario || '-'}</strong></td>
+                        <td>${m.tipo_reperto || '-'}</td>
+                        <td>${m.definizione || '-'}</td>
+                        <td>${m.area || '-'}</td>
+                        <td>${m.us || '-'}</td>
+                        <td>${m.nr_cassa || '-'}</td>
+                        <td>${m.luogo_conservazione || '-'}</td>
+                        <td>${m.peso ? m.peso + 'g' : '-'}</td>
+                        <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('INVENTARIO_MATERIALI', ${m.id_invmat})">
+                            <i class="bi bi-images"></i>
+                        </button></td>
+                    </tr>
+                `;
+            });
+
+            hideLoading();
+        }
+
+        // Load Pottery
+        async function loadPottery() {
+            showLoading();
+            const params = { limit: 500 };
+            if (currentSite) params.sito = currentSite;
+
+            const [pottery, types] = await Promise.all([
+                fetchAPI('/pottery/', params),
+                fetchAPI('/pottery/types', { sito: currentSite })
+            ]);
+
+            const typeSelect = document.getElementById('potteryTypeFilter');
+            typeSelect.innerHTML = '<option value="">Tutti i tipi</option>';
+            types?.forEach(t => typeSelect.innerHTML += `<option value="${t}">${t}</option>`);
+
+            const tbody = document.querySelector('#potteryTable tbody');
+            tbody.innerHTML = '';
+
+            pottery?.forEach(p => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${p.sito || '-'}</td>
+                        <td><strong>${p.numero_inventario || '-'}</strong></td>
+                        <td>${p.tipo_reperto || '-'}</td>
+                        <td>${p.definizione || '-'}</td>
+                        <td>${p.corpo_ceramico || '-'}</td>
+                        <td>${p.area || '-'}</td>
+                        <td>${p.us || '-'}</td>
+                        <td>${p.datazione || '-'}</td>
+                        <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('POTTERY', ${p.id_rep})">
+                            <i class="bi bi-images"></i>
+                        </button></td>
+                    </tr>
+                `;
+            });
+
+            hideLoading();
+        }
+
+        // Load Inventory Summary
+        async function loadInventory() {
+            showLoading();
+            const params = currentSite ? { sito: currentSite } : {};
+            const summary = await fetchAPI('/materiali/summary', params);
+
+            const container = document.getElementById('inventorySummary');
+            container.innerHTML = '';
+
+            // Summary cards
+            container.innerHTML += `
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h6 class="text-muted">Totale Materiali</h6>
+                                <p class="stat-value">${summary?.total_materials || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h6 class="text-muted">Totale Casse</h6>
+                                <p class="stat-value">${summary?.total_boxes || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h6 class="text-muted">Depositi</h6>
+                                <p class="stat-value">${summary?.storage_locations?.length || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Storage locations
+            summary?.storage_locations?.forEach(storage => {
+                let boxesHtml = '';
+                storage.boxes?.forEach(box => {
+                    boxesHtml += `
+                        <div class="card box-card">
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Cassa ${box.nr_cassa}</strong>
+                                        <span class="badge bg-primary ms-2">${box.total_items} reperti</span>
+                                    </div>
+                                    <small class="text-muted">${box.types?.join(', ') || ''}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML += `
+                    <div class="storage-section">
+                        <div class="storage-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-building me-2"></i>${storage.luogo_conservazione}
+                                <span class="badge bg-secondary ms-2">${storage.total_boxes} casse</span>
+                                <span class="badge bg-info ms-1">${storage.total_items} reperti</span>
+                            </h5>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                ${boxesHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            hideLoading();
+        }
+
+        // Show Media
+        async function showMedia(entityType, entityId) {
+            const media = await fetchAPI(`/media/for-entity/${entityType}/${entityId}`);
+
+            if (!media || media.length === 0) {
+                alert('Nessun media associato');
+                return;
+            }
+
+            const gallery = document.getElementById('mediaGallery');
+            gallery.innerHTML = '';
+
+            media.forEach((m, idx) => {
+                gallery.innerHTML += `
+                    <img src="/api/media/thumbnail/${m.id_media}"
+                         class="media-thumbnail"
+                         onclick="document.getElementById('modalImage').src='/api/media/full/${m.id_media}'"
+                         alt="${m.media_filename}">
+                `;
+            });
+
+            document.getElementById('modalImage').src = `/api/media/full/${media[0].id_media}`;
+            new bootstrap.Modal(document.getElementById('mediaModal')).show();
+        }
+
+        // Export
+        function exportData(type, format) {
+            const params = new URLSearchParams();
+            if (currentSite) params.append('sito', currentSite);
+
+            const url = `/api/export/${type}/${format}?${params.toString()}`;
+            window.open(url, '_blank');
+        }
+
+        // Site selector
+        async function loadSiteSelector() {
+            const sites = await fetchAPI('/sites/names');
+            const select = document.getElementById('siteSelector');
+
+            sites?.forEach(site => {
+                select.innerHTML += `<option value="${site}">${site}</option>`;
+            });
+        }
+
+        document.getElementById('siteSelector').addEventListener('change', (e) => {
+            currentSite = e.target.value;
+            // Reload current section
+            const activeSection = document.querySelector('.sidebar .nav-link.active').dataset.section;
+            showSection(activeSection);
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSiteSelector();
+            showSection('dashboard');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+"""
+SQLAlchemy models for archaeological data
+These mirror the PyArchInit database schema
+"""
+from sqlalchemy import Column, Integer, String, Text, Float, Date, ForeignKey, Boolean
+from sqlalchemy.orm import relationship
+from ..database import Base
+
+
+class Site(Base):
+    """Archaeological site"""
+    __tablename__ = 'site_table'
+
+    id_sito = Column(Integer, primary_key=True)
+    sito = Column(String(255))
+    nazione = Column(String(255))
+    regione = Column(String(255))
+    comune = Column(String(255))
+    descrizione = Column(Text)
+    provincia = Column(String(255))
+    definizione_sito = Column(String(255))
+    sito_path = Column(Text)
+
+
+class US(Base):
+    """Stratigraphic Unit"""
+    __tablename__ = 'us_table'
+
+    id_us = Column(Integer, primary_key=True)
+    sito = Column(String(255))
+    area = Column(String(255))
+    us = Column(Integer)
+    d_stratigrafica = Column(String(255))
+    d_interpretativa = Column(String(255))
+    descrizione = Column(Text)
+    interpretazione = Column(Text)
+    periodo_iniziale = Column(String(255))
+    fase_iniziale = Column(String(255))
+    periodo_finale = Column(String(255))
+    fase_finale = Column(String(255))
+    scavato = Column(String(255))
+    attivita = Column(String(255))
+    anno_scavo = Column(String(255))
+    metodo_di_scavo = Column(String(255))
+    inclusi = Column(Text)
+    campioni = Column(Text)
+    rapporti = Column(Text)
+    data_schedatura = Column(String(255))
+    schedatore = Column(String(255))
+    formazione = Column(String(255))
+    stato_di_conservazione = Column(String(255))
+    colore = Column(String(255))
+    consistenza = Column(String(255))
+    struttura = Column(String(255))
+    cont_per = Column(String(255))
+    order_layer = Column(Integer)
+    unita_tipo = Column(String(255))
+    settore = Column(String(255))
+    quad_par = Column(String(255))
+    ambient = Column(String(255))
+    saggio = Column(String(255))
+    elem_datanti = Column(Text)
+    funz_statica = Column(String(255))
+    lavorazione = Column(String(255))
+    spess_giunti = Column(String(255))
+    letti_posa = Column(String(255))
+    alt_mod = Column(String(255))
+    un_ed_riass = Column(String(255))
+    reimp = Column(String(255))
+    posa_opera = Column(String(255))
+    quota_min_usm = Column(Float)
+    quota_max_usm = Column(Float)
+    cons_legante = Column(String(255))
+    col_legite = Column(String(255))
+    aggreg_legite = Column(String(255))
+    con_text_mat = Column(String(255))
+    col_materite = Column(String(255))
+    inclite = Column(Text)
+    n_catalogo_generale = Column(String(255))
+    n_catalogo_interno = Column(String(255))
+    n_catalogo_internazionale = Column(String(255))
+    soprintendenza = Column(String(255))
+    quota_relativa = Column(Float)
+    quota_abs = Column(Float)
+    ref_tm = Column(String(255))
+    ref_ra = Column(String(255))
+    ref_n = Column(String(255))
+    posizione = Column(String(255))
+    criteri_distinzione = Column(String(255))
+    modo_formazione = Column(String(255))
+    componenti_organite = Column(Text)
+    componenti_inite = Column(Text)
+    lungh_max = Column(Float)
+    altezza_max = Column(Float)
+    altezza_min = Column(Float)
+    profondita_max = Column(Float)
+    profondita_min = Column(Float)
+    larghezza_media = Column(Float)
+    quota_max_abs = Column(Float)
+    quota_max_rel = Column(Float)
+    quota_min_abs = Column(Float)
+    quota_min_rel = Column(Float)
+    osservazioni = Column(Text)
+    datazione = Column(String(255))
+    flottazione = Column(String(255))
+    setacciatura = Column(String(255))
+    affidabilita = Column(String(255))
+    direttore_us = Column(String(255))
+    responsabile_us = Column(String(255))
+    cod_ente_schedatore = Column(String(255))
+    data_rilevazione = Column(String(255))
+    data_rielaborazione = Column(String(255))
+    lunghezza_usm = Column(Float)
+    altezza_usm = Column(Float)
+    spessore_usm = Column(Float)
+    tecnica_muraria_usm = Column(String(255))
+    modulo_usm = Column(String(255))
+    campione_malta_usm = Column(String(255))
+    campione_mattite_usm = Column(String(255))
+    campione_pieite_usm = Column(String(255))
+    provenienza_materiali_usm = Column(String(255))
+    criteri_distinzione_usm = Column(String(255))
+    uso_primario_usm = Column(String(255))
+
+
+class InventarioMateriali(Base):
+    """Materials inventory"""
+    __tablename__ = 'inventario_materiali_table'
+
+    id_invmat = Column(Integer, primary_key=True)
+    sito = Column(String(255))
+    numero_inventario = Column(Integer)
+    tipo_reperto = Column(String(255))
+    criterio_schedatura = Column(String(255))
+    definizione = Column(String(255))
+    descrizione = Column(Text)
+    area = Column(String(255))
+    us = Column(Integer)
+    lavato = Column(String(255))
+    nr_cassa = Column(String(255))
+    luogo_conservazione = Column(String(255))
+    stato_conservazione = Column(String(255))
+    datazione_reperto = Column(String(255))
+    elementi_reperto = Column(Text)
+    misurazioni = Column(Text)
+    rif_biblio = Column(Text)
+    tecnologie = Column(Text)
+    forme_minime = Column(Integer)
+    forme_massime = Column(Integer)
+    totale_frammenti = Column(Integer)
+    corpo_ceramico = Column(String(255))
+    rivestimento = Column(String(255))
+    diametro_orlo = Column(Float)
+    peso = Column(Float)
+    tipo = Column(String(255))
+    eve_orlo = Column(Float)
+    repertato = Column(String(255))
+    diagnostico = Column(String(255))
+    n_reperto = Column(Integer)
+    tipo_contenitore = Column(String(255))
+    struttura = Column(String(255))
+
+
+class Pottery(Base):
+    """Pottery records"""
+    __tablename__ = 'pyarchinit_pottery_table'
+
+    id_rep = Column(Integer, primary_key=True)
+    sito = Column(String(255))
+    area = Column(String(255))
+    us = Column(Integer)
+    numero_inventario = Column(Integer)
+    tipo_reperto = Column(String(255))
+    definizione = Column(String(255))
+    descrizione = Column(Text)
+    corpo_ceramico = Column(String(255))
+    rivestimento = Column(String(255))
+    diametro_orlo = Column(Float)
+    diametro_fondo = Column(Float)
+    diametro_max = Column(Float)
+    altezza = Column(Float)
+    altezza_max = Column(Float)
+    spessore_max = Column(Float)
+    peso = Column(Float)
+    eve_orlo = Column(Float)
+    datazione = Column(String(255))
+    cronologia = Column(String(255))
+    fase_produzione = Column(String(255))
+    provenienza = Column(String(255))
+    bibliografia = Column(Text)
+    nr_cassa = Column(String(255))
+    luogo_conservazione = Column(String(255))
+    stato_conservazione = Column(String(255))
+
+
+class MediaThumb(Base):
+    """Media thumbnails"""
+    __tablename__ = 'media_thumb_table'
+
+    id_media_thumb = Column(Integer, primary_key=True)
+    id_media = Column(Integer)
+    mediatype = Column(String(255))
+    media_filename = Column(String(255))
+    media_thumb_filename = Column(String(255))
+    filetype = Column(String(255))
+    filepath = Column(Text)
+    path_resize = Column(Text)
+
+
+class MediaToEntity(Base):
+    """Media to entity associations"""
+    __tablename__ = 'media_to_entity_table'
+
+    id_mediaToEntity = Column(Integer, primary_key=True)
+    id_entity = Column(Integer)
+    entity_type = Column(String(255))
+    table_name = Column(String(255))
+    id_media = Column(Integer)
+    filepath = Column(Text)
+    media_name = Column(String(255))

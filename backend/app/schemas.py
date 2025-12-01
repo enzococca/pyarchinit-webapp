@@ -1,0 +1,163 @@
+"""
+Pydantic schemas for API request/response validation
+"""
+from pydantic import BaseModel
+from typing import Optional, List, Any
+from datetime import date
+
+
+# Site schemas
+class SiteBase(BaseModel):
+    sito: Optional[str] = None
+    nazione: Optional[str] = None
+    regione: Optional[str] = None
+    comune: Optional[str] = None
+    provincia: Optional[str] = None
+    descrizione: Optional[str] = None
+    definizione_sito: Optional[str] = None
+
+
+class SiteResponse(SiteBase):
+    id_sito: int
+
+    class Config:
+        from_attributes = True
+
+
+# US schemas
+class USBase(BaseModel):
+    sito: Optional[str] = None
+    area: Optional[str] = None
+    us: Optional[int] = None
+    d_stratigrafica: Optional[str] = None
+    d_interpretativa: Optional[str] = None
+    descrizione: Optional[str] = None
+    interpretazione: Optional[str] = None
+    periodo_iniziale: Optional[str] = None
+    fase_iniziale: Optional[str] = None
+    periodo_finale: Optional[str] = None
+    fase_finale: Optional[str] = None
+    datazione: Optional[str] = None
+    anno_scavo: Optional[str] = None
+    scavato: Optional[str] = None
+    order_layer: Optional[int] = None
+    unita_tipo: Optional[str] = None
+    settore: Optional[str] = None
+    quota_min_abs: Optional[float] = None
+    quota_max_abs: Optional[float] = None
+
+
+class USResponse(USBase):
+    id_us: int
+
+    class Config:
+        from_attributes = True
+
+
+# Inventario Materiali schemas
+class MaterialeBase(BaseModel):
+    sito: Optional[str] = None
+    numero_inventario: Optional[int] = None
+    tipo_reperto: Optional[str] = None
+    definizione: Optional[str] = None
+    descrizione: Optional[str] = None
+    area: Optional[str] = None
+    us: Optional[int] = None
+    nr_cassa: Optional[str] = None
+    luogo_conservazione: Optional[str] = None
+    stato_conservazione: Optional[str] = None
+    datazione_reperto: Optional[str] = None
+    lavato: Optional[str] = None
+    totale_frammenti: Optional[int] = None
+    forme_minime: Optional[int] = None
+    forme_massime: Optional[int] = None
+    peso: Optional[float] = None
+    repertato: Optional[str] = None
+    diagnostico: Optional[str] = None
+
+
+class MaterialeResponse(MaterialeBase):
+    id_invmat: int
+
+    class Config:
+        from_attributes = True
+
+
+# Pottery schemas
+class PotteryBase(BaseModel):
+    sito: Optional[str] = None
+    area: Optional[str] = None
+    us: Optional[int] = None
+    numero_inventario: Optional[int] = None
+    tipo_reperto: Optional[str] = None
+    definizione: Optional[str] = None
+    descrizione: Optional[str] = None
+    corpo_ceramico: Optional[str] = None
+    rivestimento: Optional[str] = None
+    diametro_orlo: Optional[float] = None
+    altezza: Optional[float] = None
+    peso: Optional[float] = None
+    datazione: Optional[str] = None
+    nr_cassa: Optional[str] = None
+    luogo_conservazione: Optional[str] = None
+    stato_conservazione: Optional[str] = None
+
+
+class PotteryResponse(PotteryBase):
+    id_rep: int
+
+    class Config:
+        from_attributes = True
+
+
+# Media schemas
+class MediaResponse(BaseModel):
+    id_media: int
+    media_filename: Optional[str] = None
+    mediatype: Optional[str] = None
+    filepath: Optional[str] = None
+    path_resize: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    full_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Summary schemas for materials inventory
+class BoxSummary(BaseModel):
+    nr_cassa: str
+    luogo_conservazione: Optional[str] = None
+    total_items: int
+    types: List[str] = []
+
+
+class StorageSummary(BaseModel):
+    luogo_conservazione: str
+    total_boxes: int
+    total_items: int
+    boxes: List[BoxSummary] = []
+
+
+class MaterialsSummary(BaseModel):
+    total_materials: int
+    total_boxes: int
+    storage_locations: List[StorageSummary] = []
+    by_type: dict = {}
+    by_site: dict = {}
+
+
+# Pagination
+class PaginatedResponse(BaseModel):
+    items: List[Any]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+# Export request
+class ExportRequest(BaseModel):
+    entity_type: str  # 'us', 'materiali', 'pottery', 'site'
+    filters: Optional[dict] = None
+    format: str = 'excel'  # 'excel' or 'pdf'
