@@ -7,6 +7,7 @@ from .materiali import router as materiali_router
 from .pottery import router as pottery_router
 from .media import router as media_router
 from .export import router as export_router
+from .auth import router as auth_router
 
 __all__ = [
     'sites_router',
@@ -14,5 +15,6 @@ __all__ = [
     'materiali_router',
     'pottery_router',
     'media_router',
-    'export_router'
+    'export_router',
+    'auth_router'
 ]

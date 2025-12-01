@@ -30,7 +30,8 @@ from .routers import (
     materiali_router,
     pottery_router,
     media_router,
-    export_router
+    export_router,
+    auth_router
 )
 
 # Create FastAPI app
@@ -63,11 +64,32 @@ app.include_router(materiali_router, prefix="/api")
 app.include_router(pottery_router, prefix="/api")
 app.include_router(media_router, prefix="/api")
 app.include_router(export_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 
 
-# Root endpoint - serve frontend
+# Root endpoint - serve landing page
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
+async def landing(request: Request):
+    """Serve the landing/presentation page"""
+    return templates.TemplateResponse("landing.html", {
+        "request": request,
+        "app_name": settings.APP_NAME
+    })
+
+
+# Login page
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Serve the login page"""
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "app_name": settings.APP_NAME
+    })
+
+
+# Main app (protected)
+@app.get("/app", response_class=HTMLResponse)
+async def main_app(request: Request):
     """Serve the main web application"""
     return templates.TemplateResponse("index.html", {
         "request": request,

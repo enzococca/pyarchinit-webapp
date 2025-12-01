@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # CORS origins
     CORS_ORIGINS: str = "*"
 
+    # JWT settings
+    SECRET_KEY: str = "pyarchinit-secret-key-change-in-production-2024"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
+
     class Config:
         env_file = ".env"
         extra = "allow"
