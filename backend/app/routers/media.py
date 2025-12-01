@@ -108,8 +108,26 @@ def get_public_proxy_url(filepath: str, is_thumbnail: bool = True) -> str:
     return f"{base_url}/api/media/public/{folder}/{filepath}"
 
 
-def get_cloudinary_url(filepath: str, is_thumbnail: bool = True) -> str:
-    """Generate Cloudinary fetch URL for optimized image delivery"""
+def get_direct_cloudinary_url(id_media: int, media_filename: str, is_thumbnail: bool = True) -> str:
+    """
+    Generate direct Cloudinary URL for uploaded media.
+    After migration, thumbnails are stored directly in Cloudinary.
+    """
+    cloud_name = settings.CLOUDINARY_CLOUD_NAME
+
+    if is_thumbnail:
+        # Direct URL to uploaded thumbnail with optimizations
+        transformations = "f_auto,q_auto,w_150,h_150,c_fill"
+        public_id = f"pyarchinit/thumbnails/thumb/{id_media}_{media_filename}"
+    else:
+        # For originals, we still use fetch URL through proxy (they're on storage server)
+        return None
+
+    return f"https://res.cloudinary.com/{cloud_name}/image/upload/{transformations}/{public_id}"
+
+
+def get_cloudinary_fetch_url(filepath: str, is_thumbnail: bool = True) -> str:
+    """Generate Cloudinary fetch URL for images still on storage server (legacy/originals)"""
     if not filepath:
         return None
 
@@ -132,14 +150,24 @@ def get_cloudinary_url(filepath: str, is_thumbnail: bool = True) -> str:
     return f"https://res.cloudinary.com/{cloud_name}/image/fetch/{transformations}/{encoded_url}"
 
 
-def get_media_url(filepath: str, is_thumbnail: bool = True, media_cat: str = "image") -> str:
-    """Generate URL for media file - uses Cloudinary if enabled (for images only)"""
+def get_media_url(filepath: str, is_thumbnail: bool = True, media_cat: str = "image",
+                  id_media: int = None, media_filename: str = None) -> str:
+    """
+    Generate URL for media file.
+    - For thumbnails with id_media: use direct Cloudinary URL (uploaded media)
+    - For originals: use Cloudinary fetch URL (storage server)
+    - For video/3D: use public proxy URL
+    """
     if not filepath:
         return None
 
     # Only use Cloudinary for images (not for video or 3D)
     if settings.CLOUDINARY_ENABLED and media_cat == "image":
-        return get_cloudinary_url(filepath, is_thumbnail)
+        # For thumbnails, use direct Cloudinary URL if we have id_media
+        if is_thumbnail and id_media and media_filename:
+            return get_direct_cloudinary_url(id_media, media_filename, is_thumbnail=True)
+        # For originals, use fetch URL through proxy
+        return get_cloudinary_fetch_url(filepath, is_thumbnail)
 
     # For video/3D or when Cloudinary is disabled, use public proxy URL
     return get_public_proxy_url(filepath, is_thumbnail)
@@ -280,7 +308,8 @@ async def get_media_for_entity(
                 media_category=media_cat,
                 filepath=thumb.filepath,
                 path_resize=thumb.path_resize,
-                thumbnail_url=get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat),
+                thumbnail_url=get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat,
+                                            id_media=thumb.id_media, media_filename=thumb.media_filename),
                 full_url=get_media_url(thumb.path_resize or thumb.filepath, is_thumbnail=False, media_cat=media_cat)
             ))
 
@@ -296,7 +325,9 @@ async def get_thumbnail(media_id: int, db: Session = Depends(get_db)):
     if not thumb:
         raise HTTPException(status_code=404, detail="Media not found")
 
-    url = get_media_url(thumb.filepath, is_thumbnail=True)
+    media_cat = get_media_category(thumb.media_filename, thumb.filetype, thumb.mediatype)
+    url = get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat,
+                        id_media=thumb.id_media, media_filename=thumb.media_filename)
     if not url:
         raise HTTPException(status_code=404, detail="Thumbnail path not available")
 
@@ -334,7 +365,8 @@ async def get_full_image(media_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Media not found")
 
     filepath = thumb.path_resize or thumb.filepath
-    url = get_media_url(filepath, is_thumbnail=False)
+    media_cat = get_media_category(thumb.media_filename, thumb.filetype, thumb.mediatype)
+    url = get_media_url(filepath, is_thumbnail=False, media_cat=media_cat)
     if not url:
         raise HTTPException(status_code=404, detail="Image path not available")
 
@@ -419,7 +451,8 @@ async def list_media(
             media_category=media_cat,
             filepath=m.filepath,
             path_resize=m.path_resize,
-            thumbnail_url=get_media_url(m.filepath, is_thumbnail=True, media_cat=media_cat),
+            thumbnail_url=get_media_url(m.filepath, is_thumbnail=True, media_cat=media_cat,
+                                        id_media=m.id_media, media_filename=m.media_filename),
             full_url=get_media_url(m.path_resize or m.filepath, is_thumbnail=False, media_cat=media_cat)
         ))
 
@@ -511,7 +544,8 @@ async def search_media_with_associations(
             "mediatype": thumb.mediatype,
             "filetype": thumb.filetype,
             "media_category": media_cat,
-            "thumbnail_url": get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat),
+            "thumbnail_url": get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat,
+                                           id_media=thumb.id_media, media_filename=thumb.media_filename),
             "full_url": get_media_url(thumb.path_resize or thumb.filepath, is_thumbnail=False, media_cat=media_cat),
             "entities": entity_info
         })
@@ -569,6 +603,7 @@ async def get_media_info(media_id: int, db: Session = Depends(get_db)):
         media_category=media_cat,
         filepath=thumb.filepath,
         path_resize=thumb.path_resize,
-        thumbnail_url=get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat),
+        thumbnail_url=get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat,
+                                    id_media=thumb.id_media, media_filename=thumb.media_filename),
         full_url=get_media_url(thumb.path_resize or thumb.filepath, is_thumbnail=False, media_cat=media_cat)
     )
