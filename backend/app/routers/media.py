@@ -1,14 +1,18 @@
 """
 API routes for Media files
 Integrates with PyArchInit Storage Server for remote media access
+With in-memory caching for improved performance
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import httpx
 import io
+import hashlib
+from cachetools import TTLCache
+import asyncio
 
 from ..database import get_db
 from ..models import MediaThumb, MediaToEntity
@@ -16,6 +20,12 @@ from ..schemas import MediaResponse
 from ..config import settings
 
 router = APIRouter(prefix="/media", tags=["Media"])
+
+# In-memory cache for images
+# Max 500 items, 1 hour TTL for thumbnails, 30 min for full images
+thumbnail_cache: TTLCache = TTLCache(maxsize=500, ttl=3600)  # 1 hour
+full_image_cache: TTLCache = TTLCache(maxsize=100, ttl=1800)  # 30 min
+cache_lock = asyncio.Lock()
 
 
 def get_media_url(filepath: str, is_thumbnail: bool = True) -> str:
@@ -33,6 +43,41 @@ def get_media_url(filepath: str, is_thumbnail: bool = True) -> str:
     return f"{base_url}/files/{folder}/{filepath}"
 
 
+async def fetch_and_cache_image(
+    url: str,
+    cache: TTLCache,
+    cache_key: str
+) -> Tuple[bytes, str]:
+    """Fetch image from storage server and cache it"""
+    # Check cache first
+    async with cache_lock:
+        if cache_key in cache:
+            return cache[cache_key]
+
+    # Fetch from storage server
+    async with httpx.AsyncClient() as client:
+        headers = {}
+        if settings.STORAGE_API_KEY:
+            headers["X-API-Key"] = settings.STORAGE_API_KEY
+
+        response = await client.get(url, headers=headers, timeout=60.0)
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Failed to fetch image: {response.status_code}"
+            )
+
+        content_type = response.headers.get("content-type", "image/jpeg")
+        image_data = (response.content, content_type)
+
+        # Store in cache
+        async with cache_lock:
+            cache[cache_key] = image_data
+
+        return image_data
+
+
 @router.get("/for-entity/{entity_type}/{entity_id}", response_model=List[MediaResponse])
 async def get_media_for_entity(
     entity_type: str,
@@ -41,7 +86,7 @@ async def get_media_for_entity(
 ):
     """
     Get all media associated with an entity.
-    entity_type: US, INVENTARIO_MATERIALI, POTTERY, TOMBA, STRUTTURA, etc.
+    entity_type: US, REPERTO, CERAMICA, etc.
     """
     # Query media associations
     associations = db.query(MediaToEntity).filter(
@@ -72,7 +117,7 @@ async def get_media_for_entity(
 
 @router.get("/thumbnail/{media_id}")
 async def get_thumbnail(media_id: int, db: Session = Depends(get_db)):
-    """Proxy endpoint to get thumbnail from storage server"""
+    """Proxy endpoint to get thumbnail from storage server (with caching)"""
     thumb = db.query(MediaThumb).filter(MediaThumb.id_media == media_id).first()
     if not thumb:
         raise HTTPException(status_code=404, detail="Media not found")
@@ -81,29 +126,28 @@ async def get_thumbnail(media_id: int, db: Session = Depends(get_db)):
     if not url:
         raise HTTPException(status_code=404, detail="Thumbnail path not available")
 
+    cache_key = f"thumb_{media_id}"
+
     try:
-        async with httpx.AsyncClient() as client:
-            headers = {}
-            if settings.STORAGE_API_KEY:
-                headers["X-API-Key"] = settings.STORAGE_API_KEY
+        image_data, content_type = await fetch_and_cache_image(
+            url, thumbnail_cache, cache_key
+        )
 
-            response = await client.get(url, headers=headers, timeout=30.0)
-
-            if response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail="Failed to fetch thumbnail")
-
-            return StreamingResponse(
-                io.BytesIO(response.content),
-                media_type=response.headers.get("content-type", "image/jpeg"),
-                headers={"Cache-Control": "public, max-age=3600"}
-            )
+        return Response(
+            content=image_data,
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=86400",  # 24 hours browser cache
+                "X-Cache": "HIT" if cache_key in thumbnail_cache else "MISS"
+            }
+        )
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Error fetching thumbnail: {str(e)}")
 
 
 @router.get("/full/{media_id}")
 async def get_full_image(media_id: int, db: Session = Depends(get_db)):
-    """Proxy endpoint to get full image from storage server"""
+    """Proxy endpoint to get full image from storage server (with caching)"""
     thumb = db.query(MediaThumb).filter(MediaThumb.id_media == media_id).first()
     if not thumb:
         raise HTTPException(status_code=404, detail="Media not found")
@@ -113,24 +157,49 @@ async def get_full_image(media_id: int, db: Session = Depends(get_db)):
     if not url:
         raise HTTPException(status_code=404, detail="Image path not available")
 
+    cache_key = f"full_{media_id}"
+
     try:
-        async with httpx.AsyncClient() as client:
-            headers = {}
-            if settings.STORAGE_API_KEY:
-                headers["X-API-Key"] = settings.STORAGE_API_KEY
+        image_data, content_type = await fetch_and_cache_image(
+            url, full_image_cache, cache_key
+        )
 
-            response = await client.get(url, headers=headers, timeout=60.0)
-
-            if response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail="Failed to fetch image")
-
-            return StreamingResponse(
-                io.BytesIO(response.content),
-                media_type=response.headers.get("content-type", "image/jpeg"),
-                headers={"Cache-Control": "public, max-age=3600"}
-            )
+        return Response(
+            content=image_data,
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=86400",  # 24 hours browser cache
+                "X-Cache": "HIT" if cache_key in full_image_cache else "MISS"
+            }
+        )
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Error fetching image: {str(e)}")
+
+
+@router.get("/cache/stats")
+async def get_cache_stats():
+    """Get cache statistics"""
+    return {
+        "thumbnail_cache": {
+            "size": len(thumbnail_cache),
+            "maxsize": thumbnail_cache.maxsize,
+            "ttl": thumbnail_cache.ttl
+        },
+        "full_image_cache": {
+            "size": len(full_image_cache),
+            "maxsize": full_image_cache.maxsize,
+            "ttl": full_image_cache.ttl
+        }
+    }
+
+
+@router.delete("/cache/clear")
+async def clear_cache():
+    """Clear all image caches"""
+    async with cache_lock:
+        thumbnail_cache.clear()
+        full_image_cache.clear()
+    return {"message": "Cache cleared"}
 
 
 @router.get("/list")
