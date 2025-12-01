@@ -130,6 +130,8 @@ class MediaResponse(BaseModel):
     id_media: int
     media_filename: Optional[str] = None
     mediatype: Optional[str] = None
+    filetype: Optional[str] = None  # file extension
+    media_category: Optional[str] = None  # 'image', 'video', '3d'
     filepath: Optional[str] = None
     path_resize: Optional[str] = None
     thumbnail_url: Optional[str] = None
@@ -137,6 +139,31 @@ class MediaResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+def get_media_category(filename: Optional[str], filetype: Optional[str]) -> str:
+    """Determine media category from filename or filetype"""
+    if not filename and not filetype:
+        return "image"
+
+    # Check extension
+    ext = ""
+    if filetype:
+        ext = filetype.lower().lstrip('.')
+    elif filename:
+        ext = filename.split('.')[-1].lower() if '.' in filename else ""
+
+    # Image extensions
+    if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif'):
+        return "image"
+    # Video extensions
+    elif ext in ('mp4', 'webm', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'm4v'):
+        return "video"
+    # 3D model extensions
+    elif ext in ('glb', 'gltf', 'obj', 'fbx', 'stl', 'ply', '3ds', 'dae'):
+        return "3d"
+    # Default to image
+    return "image"
 
 
 # Summary schemas for materials inventory

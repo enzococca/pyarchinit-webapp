@@ -15,7 +15,7 @@ import asyncio
 
 from ..database import get_db
 from ..models import MediaThumb, MediaToEntity
-from ..schemas import MediaResponse
+from ..schemas import MediaResponse, get_media_category
 from ..config import settings
 
 router = APIRouter(prefix="/media", tags=["Media"])
@@ -132,17 +132,17 @@ def get_cloudinary_url(filepath: str, is_thumbnail: bool = True) -> str:
     return f"https://res.cloudinary.com/{cloud_name}/image/fetch/{transformations}/{encoded_url}"
 
 
-def get_media_url(filepath: str, is_thumbnail: bool = True) -> str:
-    """Generate URL for media file - uses Cloudinary if enabled"""
+def get_media_url(filepath: str, is_thumbnail: bool = True, media_cat: str = "image") -> str:
+    """Generate URL for media file - uses Cloudinary if enabled (for images only)"""
     if not filepath:
         return None
 
-    # If Cloudinary is enabled, use Cloudinary fetch URL (through our public proxy)
-    if settings.CLOUDINARY_ENABLED:
+    # Only use Cloudinary for images (not for video or 3D)
+    if settings.CLOUDINARY_ENABLED and media_cat == "image":
         return get_cloudinary_url(filepath, is_thumbnail)
 
-    # Fallback: direct storage URL (requires auth header)
-    return get_storage_url(filepath, is_thumbnail)
+    # For video/3D or when Cloudinary is disabled, use public proxy URL
+    return get_public_proxy_url(filepath, is_thumbnail)
 
 
 async def fetch_and_cache_image(
@@ -227,15 +227,30 @@ async def public_image_proxy(folder: str, filepath: str):
         raise HTTPException(status_code=500, detail=f"Error fetching image: {str(e)}")
 
 
+@router.get("/categories")
+async def get_media_categories():
+    """Get available media categories for filtering"""
+    return {
+        "categories": [
+            {"id": "all", "name": "All Media", "icon": "bi-collection"},
+            {"id": "image", "name": "Images", "icon": "bi-image"},
+            {"id": "video", "name": "Videos", "icon": "bi-camera-video"},
+            {"id": "3d", "name": "3D Models", "icon": "bi-box"}
+        ]
+    }
+
+
 @router.get("/for-entity/{entity_type}/{entity_id}", response_model=List[MediaResponse])
 async def get_media_for_entity(
     entity_type: str,
     entity_id: int,
+    category: Optional[str] = Query(None, description="Filter by media category: image, video, 3d"),
     db: Session = Depends(get_db)
 ):
     """
     Get all media associated with an entity.
     entity_type: US, REPERTO, CERAMICA, etc.
+    category: Optional filter by media_category (image, video, 3d)
     """
     # Query media associations
     associations = db.query(MediaToEntity).filter(
@@ -251,14 +266,22 @@ async def get_media_for_entity(
         ).first()
 
         if thumb:
+            media_cat = get_media_category(thumb.media_filename, thumb.filetype)
+
+            # Filter by category if specified
+            if category and category != "all" and media_cat != category:
+                continue
+
             media_list.append(MediaResponse(
                 id_media=thumb.id_media,
                 media_filename=thumb.media_filename,
                 mediatype=thumb.mediatype,
+                filetype=thumb.filetype,
+                media_category=media_cat,
                 filepath=thumb.filepath,
                 path_resize=thumb.path_resize,
-                thumbnail_url=get_media_url(thumb.filepath, is_thumbnail=True),
-                full_url=get_media_url(thumb.path_resize or thumb.filepath, is_thumbnail=False)
+                thumbnail_url=get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat),
+                full_url=get_media_url(thumb.path_resize or thumb.filepath, is_thumbnail=False, media_cat=media_cat)
             ))
 
     return media_list
@@ -385,19 +408,24 @@ async def list_media(
     total = query.count()
     items = query.offset(skip).limit(limit).all()
 
+    media_items = []
+    for m in items:
+        media_cat = get_media_category(m.media_filename, m.filetype)
+        media_items.append(MediaResponse(
+            id_media=m.id_media,
+            media_filename=m.media_filename,
+            mediatype=m.mediatype,
+            filetype=m.filetype,
+            media_category=media_cat,
+            filepath=m.filepath,
+            path_resize=m.path_resize,
+            thumbnail_url=get_media_url(m.filepath, is_thumbnail=True, media_cat=media_cat),
+            full_url=get_media_url(m.path_resize or m.filepath, is_thumbnail=False, media_cat=media_cat)
+        ))
+
     return {
         "total": total,
-        "items": [
-            MediaResponse(
-                id_media=m.id_media,
-                media_filename=m.media_filename,
-                mediatype=m.mediatype,
-                filepath=m.filepath,
-                path_resize=m.path_resize,
-                thumbnail_url=get_media_url(m.filepath, is_thumbnail=True),
-                full_url=get_media_url(m.path_resize or m.filepath, is_thumbnail=False)
-            ) for m in items
-        ]
+        "items": media_items
     }
 
 
@@ -431,12 +459,15 @@ async def get_media_info(media_id: int, db: Session = Depends(get_db)):
     if not thumb:
         raise HTTPException(status_code=404, detail="Media not found")
 
+    media_cat = get_media_category(thumb.media_filename, thumb.filetype)
     return MediaResponse(
         id_media=thumb.id_media,
         media_filename=thumb.media_filename,
         mediatype=thumb.mediatype,
+        filetype=thumb.filetype,
+        media_category=media_cat,
         filepath=thumb.filepath,
         path_resize=thumb.path_resize,
-        thumbnail_url=get_media_url(thumb.filepath, is_thumbnail=True),
-        full_url=get_media_url(thumb.path_resize or thumb.filepath, is_thumbnail=False)
+        thumbnail_url=get_media_url(thumb.filepath, is_thumbnail=True, media_cat=media_cat),
+        full_url=get_media_url(thumb.path_resize or thumb.filepath, is_thumbnail=False, media_cat=media_cat)
     )

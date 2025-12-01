@@ -6,6 +6,8 @@
     <title>PyArchInit Web Viewer</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Model Viewer for 3D models -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
     <style>
         :root {
             --primary-color: #4472C4;
@@ -100,6 +102,67 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
+            justify-content: center;
+        }
+
+        .media-gallery-item {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .media-gallery-item:hover {
+            transform: scale(1.05);
+            border-color: var(--primary-color);
+        }
+
+        .media-gallery-item.active {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(68, 114, 196, 0.5);
+        }
+
+        .media-gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .media-gallery-item .media-type-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border-radius: 4px;
+            padding: 2px 5px;
+            font-size: 0.65rem;
+        }
+
+        .media-gallery-item .media-type-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .media-gallery-item.video-item,
+        .media-gallery-item.model-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .media-gallery-item.model-item {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         }
 
         .filter-section {
@@ -977,17 +1040,61 @@
 
     <!-- Media Modal -->
     <div class="modal fade" id="mediaModal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Media Viewer</h5>
+                    <h5 class="modal-title"><i class="bi bi-collection me-2"></i>Media Viewer</h5>
+                    <div class="btn-group ms-auto me-3" role="group" id="mediaCategoryFilter">
+                        <button type="button" class="btn btn-sm btn-outline-primary active" data-category="all">
+                            <i class="bi bi-collection"></i> All
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-category="image">
+                            <i class="bi bi-image"></i> Images
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-category="video">
+                            <i class="bi bi-camera-video"></i> Videos
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-category="3d">
+                            <i class="bi bi-box"></i> 3D
+                        </button>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body text-center">
-                    <img id="modalImage" src="" alt="Media" class="img-fluid">
+                <div class="modal-body text-center" style="min-height: 400px;">
+                    <!-- Image viewer -->
+                    <div id="imageViewer" class="media-viewer">
+                        <img id="modalImage" src="" alt="Media" class="img-fluid" style="max-height: 70vh;">
+                    </div>
+                    <!-- Video viewer -->
+                    <div id="videoViewer" class="media-viewer" style="display: none;">
+                        <video id="modalVideo" controls class="w-100" style="max-height: 70vh;">
+                            <source src="" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    <!-- 3D Model viewer -->
+                    <div id="modelViewer" class="media-viewer" style="display: none;">
+                        <model-viewer id="modal3DModel"
+                            src=""
+                            alt="3D Model"
+                            camera-controls
+                            auto-rotate
+                            shadow-intensity="1"
+                            style="width: 100%; height: 70vh; background-color: #f0f0f0;">
+                        </model-viewer>
+                    </div>
+                    <!-- Loading indicator -->
+                    <div id="mediaLoading" class="d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <div id="mediaGallery" class="media-gallery"></div>
+                <div class="modal-footer flex-column">
+                    <div class="w-100 mb-2">
+                        <small class="text-muted" id="mediaInfo"></small>
+                    </div>
+                    <div id="mediaGallery" class="media-gallery w-100"></div>
                 </div>
             </div>
         </div>
@@ -1737,30 +1844,130 @@
             new bootstrap.Modal(document.getElementById('boxContentsModal')).show();
         }
 
+        // Media state for modal
+        let currentMediaList = [];
+        let currentMediaEntityType = '';
+        let currentMediaEntityId = 0;
+        let currentMediaCategory = 'all';
+
         // Show Media
-        async function showMedia(entityType, entityId) {
-            const media = await fetchAPI(`/media/for-entity/${entityType}/${entityId}`);
+        async function showMedia(entityType, entityId, category = 'all') {
+            currentMediaEntityType = entityType;
+            currentMediaEntityId = entityId;
+            currentMediaCategory = category;
+
+            const categoryParam = category !== 'all' ? `?category=${category}` : '';
+            const media = await fetchAPI(`/media/for-entity/${entityType}/${entityId}${categoryParam}`);
 
             if (!media || media.length === 0) {
-                alert('No media associated with this item');
+                if (category !== 'all') {
+                    alert(`No ${category} media found for this item`);
+                } else {
+                    alert('No media associated with this item');
+                }
                 return;
             }
 
+            currentMediaList = media;
+            renderMediaGallery(media);
+
+            // Show first media item
+            displayMediaItem(media[0], 0);
+
+            // Update filter buttons active state
+            document.querySelectorAll('#mediaCategoryFilter button').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.category === category) {
+                    btn.classList.add('active');
+                }
+            });
+
+            new bootstrap.Modal(document.getElementById('mediaModal')).show();
+        }
+
+        function renderMediaGallery(mediaList) {
             const gallery = document.getElementById('mediaGallery');
             gallery.innerHTML = '';
 
-            media.forEach((m, idx) => {
-                gallery.innerHTML += `
-                    <img src="/api/media/thumbnail/${m.id_media}"
-                         class="media-thumbnail"
-                         onclick="document.getElementById('modalImage').src='/api/media/full/${m.id_media}'"
-                         alt="${m.media_filename}">
-                `;
+            mediaList.forEach((m, idx) => {
+                const category = m.media_category || 'image';
+                let itemHtml = '';
+
+                if (category === 'image') {
+                    itemHtml = `
+                        <div class="media-gallery-item ${idx === 0 ? 'active' : ''}" onclick="displayMediaItem(currentMediaList[${idx}], ${idx})" data-index="${idx}">
+                            <img src="${m.thumbnail_url || `/api/media/thumbnail/${m.id_media}`}" alt="${m.media_filename || 'Image'}">
+                            <span class="media-type-badge"><i class="bi bi-image"></i></span>
+                        </div>
+                    `;
+                } else if (category === 'video') {
+                    itemHtml = `
+                        <div class="media-gallery-item video-item ${idx === 0 ? 'active' : ''}" onclick="displayMediaItem(currentMediaList[${idx}], ${idx})" data-index="${idx}">
+                            <i class="bi bi-play-circle media-type-icon"></i>
+                            <span class="media-type-badge"><i class="bi bi-camera-video"></i> Video</span>
+                        </div>
+                    `;
+                } else if (category === '3d') {
+                    itemHtml = `
+                        <div class="media-gallery-item model-item ${idx === 0 ? 'active' : ''}" onclick="displayMediaItem(currentMediaList[${idx}], ${idx})" data-index="${idx}">
+                            <i class="bi bi-box media-type-icon"></i>
+                            <span class="media-type-badge"><i class="bi bi-box"></i> 3D</span>
+                        </div>
+                    `;
+                }
+
+                gallery.innerHTML += itemHtml;
+            });
+        }
+
+        function displayMediaItem(media, index) {
+            const category = media.media_category || 'image';
+
+            // Hide all viewers
+            document.getElementById('imageViewer').style.display = 'none';
+            document.getElementById('videoViewer').style.display = 'none';
+            document.getElementById('modelViewer').style.display = 'none';
+
+            // Stop video if playing
+            const video = document.getElementById('modalVideo');
+            video.pause();
+            video.src = '';
+
+            // Update active state in gallery
+            document.querySelectorAll('.media-gallery-item').forEach((item, idx) => {
+                item.classList.toggle('active', idx === index);
             });
 
-            document.getElementById('modalImage').src = `/api/media/full/${media[0].id_media}`;
-            new bootstrap.Modal(document.getElementById('mediaModal')).show();
+            // Show media info
+            document.getElementById('mediaInfo').innerHTML = `
+                <strong>${media.media_filename || 'Unknown'}</strong>
+                | Type: <span class="badge bg-secondary">${category}</span>
+                ${media.filetype ? `| Format: ${media.filetype}` : ''}
+            `;
+
+            const fullUrl = media.full_url || `/api/media/full/${media.id_media}`;
+
+            if (category === 'image') {
+                document.getElementById('imageViewer').style.display = 'block';
+                document.getElementById('modalImage').src = fullUrl;
+            } else if (category === 'video') {
+                document.getElementById('videoViewer').style.display = 'block';
+                const videoEl = document.getElementById('modalVideo');
+                videoEl.src = fullUrl;
+                videoEl.load();
+            } else if (category === '3d') {
+                document.getElementById('modelViewer').style.display = 'block';
+                document.getElementById('modal3DModel').src = fullUrl;
+            }
         }
+
+        // Media category filter handlers
+        document.querySelectorAll('#mediaCategoryFilter button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const category = btn.dataset.category;
+                showMedia(currentMediaEntityType, currentMediaEntityId, category);
+            });
+        });
 
         // Export functions
         function exportData(type, format) {
