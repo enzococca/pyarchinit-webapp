@@ -7,11 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 import httpx
 import io
-import hashlib
-from cachetools import TTLCache
+import time
 import asyncio
 
 from ..database import get_db
@@ -21,10 +20,62 @@ from ..config import settings
 
 router = APIRouter(prefix="/media", tags=["Media"])
 
+
+# Simple TTL Cache implementation without external dependencies
+class SimpleTTLCache:
+    """Simple TTL cache using dict with timestamp tracking"""
+
+    def __init__(self, maxsize: int = 100, ttl: int = 3600):
+        self.maxsize = maxsize
+        self.ttl = ttl
+        self._cache: Dict[str, Tuple[Any, float]] = {}
+        self._lock = asyncio.Lock()
+
+    def _is_expired(self, timestamp: float) -> bool:
+        return time.time() - timestamp > self.ttl
+
+    def _cleanup(self):
+        """Remove expired entries and enforce maxsize"""
+        now = time.time()
+        # Remove expired
+        expired_keys = [k for k, (_, ts) in self._cache.items() if now - ts > self.ttl]
+        for k in expired_keys:
+            del self._cache[k]
+
+        # Enforce maxsize - remove oldest entries
+        if len(self._cache) > self.maxsize:
+            sorted_items = sorted(self._cache.items(), key=lambda x: x[1][1])
+            for k, _ in sorted_items[:len(self._cache) - self.maxsize]:
+                del self._cache[k]
+
+    def get(self, key: str) -> Optional[Any]:
+        if key in self._cache:
+            value, timestamp = self._cache[key]
+            if not self._is_expired(timestamp):
+                return value
+            else:
+                del self._cache[key]
+        return None
+
+    def set(self, key: str, value: Any):
+        self._cleanup()
+        self._cache[key] = (value, time.time())
+
+    def __contains__(self, key: str) -> bool:
+        return self.get(key) is not None
+
+    def __len__(self) -> int:
+        self._cleanup()
+        return len(self._cache)
+
+    def clear(self):
+        self._cache.clear()
+
+
 # In-memory cache for images
 # Max 500 items, 1 hour TTL for thumbnails, 30 min for full images
-thumbnail_cache: TTLCache = TTLCache(maxsize=500, ttl=3600)  # 1 hour
-full_image_cache: TTLCache = TTLCache(maxsize=100, ttl=1800)  # 30 min
+thumbnail_cache = SimpleTTLCache(maxsize=500, ttl=3600)  # 1 hour
+full_image_cache = SimpleTTLCache(maxsize=100, ttl=1800)  # 30 min
 cache_lock = asyncio.Lock()
 
 
@@ -45,14 +96,15 @@ def get_media_url(filepath: str, is_thumbnail: bool = True) -> str:
 
 async def fetch_and_cache_image(
     url: str,
-    cache: TTLCache,
+    cache: SimpleTTLCache,
     cache_key: str
 ) -> Tuple[bytes, str]:
     """Fetch image from storage server and cache it"""
     # Check cache first
     async with cache_lock:
-        if cache_key in cache:
-            return cache[cache_key]
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
 
     # Fetch from storage server
     async with httpx.AsyncClient() as client:
@@ -73,7 +125,7 @@ async def fetch_and_cache_image(
 
         # Store in cache
         async with cache_lock:
-            cache[cache_key] = image_data
+            cache.set(cache_key, image_data)
 
         return image_data
 
