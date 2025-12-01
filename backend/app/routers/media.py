@@ -440,20 +440,20 @@ async def search_media_with_associations(
 ):
     """
     Search media files with their entity associations.
-    Returns media info along with which entities they belong to.
+    Returns ONLY media that have at least one association.
     """
-    # First get total statistics from all media
-    all_media_query = db.query(MediaThumb)
+    # First get total statistics from media WITH associations only
+    all_media_query = db.query(MediaThumb).join(
+        MediaToEntity, MediaThumb.id_media == MediaToEntity.id_media
+    ).distinct()
 
     # Apply filename filter if provided
     if filename:
         all_media_query = all_media_query.filter(MediaThumb.media_filename.ilike(f"%{filename}%"))
 
-    # If entity_type filter, we need to join
+    # Filter by entity_type if provided
     if entity_type:
-        all_media_query = all_media_query.join(
-            MediaToEntity, MediaThumb.id_media == MediaToEntity.id_media
-        ).filter(MediaToEntity.entity_type == entity_type.upper())
+        all_media_query = all_media_query.filter(MediaToEntity.entity_type == entity_type.upper())
 
     # Count by mediatype for statistics
     all_media = all_media_query.all()
@@ -470,16 +470,16 @@ async def search_media_with_associations(
     if media_category:
         total_count = stats.get(media_category, 0)
 
-    # Now get paginated results with associations
-    query = db.query(MediaThumb).distinct()
+    # Now get paginated results - only media with associations
+    query = db.query(MediaThumb).join(
+        MediaToEntity, MediaThumb.id_media == MediaToEntity.id_media
+    ).distinct()
 
     if filename:
         query = query.filter(MediaThumb.media_filename.ilike(f"%{filename}%"))
 
     if entity_type:
-        query = query.join(
-            MediaToEntity, MediaThumb.id_media == MediaToEntity.id_media
-        ).filter(MediaToEntity.entity_type == entity_type.upper())
+        query = query.filter(MediaToEntity.entity_type == entity_type.upper())
 
     # Get paginated results
     thumbs = query.offset(skip).limit(limit).all()
