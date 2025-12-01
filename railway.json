@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "PYTHONPATH=/app/backend uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir /app/backend",
+    "startCommand": "cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}",
     "healthcheckPath": "/health",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
