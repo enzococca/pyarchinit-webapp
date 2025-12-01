@@ -234,17 +234,154 @@
             color: var(--primary-color);
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
+        /* Responsive - Tablet */
+        @media (max-width: 991px) {
+            .hero-section {
+                padding-top: 80px;
+            }
             .hero-title {
-                font-size: 2.5rem;
+                font-size: 2.8rem;
+            }
+            .features-section,
+            .about-section,
+            .team-section {
+                padding: 60px 0;
+            }
+            .feature-card {
+                padding: 30px 20px;
+            }
+            .navbar-custom .navbar-collapse {
+                background: rgba(44, 24, 16, 0.95);
+                padding: 20px;
+                border-radius: 10px;
+                margin-top: 10px;
+            }
+            .navbar-custom .nav-link {
+                margin-left: 0;
+                padding: 10px 0;
+            }
+        }
+
+        /* Responsive - Mobile */
+        @media (max-width: 768px) {
+            .hero-section {
+                min-height: auto;
+                padding: 100px 0 60px;
+                text-align: center;
+            }
+            .hero-title {
+                font-size: 2rem;
+                line-height: 1.2;
             }
             .hero-subtitle {
-                font-size: 1.1rem;
+                font-size: 1rem;
+                padding: 0 10px;
+            }
+            .btn-hero {
+                padding: 12px 30px;
+                font-size: 1rem;
+                width: 100%;
+                max-width: 280px;
             }
             .stat-number {
-                font-size: 2rem;
+                font-size: 1.8rem;
             }
+            .stat-label {
+                font-size: 0.85rem;
+            }
+            .stats-section {
+                padding: 50px 0;
+            }
+            .section-title {
+                font-size: 1.6rem;
+            }
+            .section-subtitle {
+                font-size: 1rem;
+            }
+            .feature-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+            .feature-card h4 {
+                font-size: 1.1rem;
+            }
+            .feature-card p {
+                font-size: 0.9rem;
+            }
+            .team-avatar {
+                width: 80px;
+                height: 80px;
+                font-size: 1.8rem;
+            }
+            .about-image {
+                border-radius: 12px;
+            }
+            .footer {
+                padding: 40px 0 20px;
+                text-align: center;
+            }
+            .footer-links {
+                margin-bottom: 20px;
+            }
+        }
+
+        /* Responsive - Small Mobile */
+        @media (max-width: 480px) {
+            .hero-title {
+                font-size: 1.7rem;
+            }
+            .hero-subtitle {
+                font-size: 0.95rem;
+            }
+            .navbar-custom .navbar-brand {
+                font-size: 1.2rem;
+            }
+            .btn-login {
+                padding: 6px 18px;
+                font-size: 0.9rem;
+            }
+            .stat-item {
+                padding: 10px 5px;
+            }
+            .stat-number {
+                font-size: 1.5rem;
+            }
+            .stat-label {
+                font-size: 0.75rem;
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .feature-card:hover {
+                transform: none;
+            }
+            .btn-hero:hover {
+                transform: none;
+            }
+            .btn-hero:active {
+                transform: scale(0.98);
+            }
+        }
+
+        /* Safe area for iPhone notch */
+        @supports (padding: max(0px)) {
+            .navbar-custom {
+                padding-left: max(15px, env(safe-area-inset-left));
+                padding-right: max(15px, env(safe-area-inset-right));
+            }
+            .footer {
+                padding-bottom: max(30px, env(safe-area-inset-bottom));
+            }
+        }
+
+        /* Navbar toggler icon color fix */
+        .navbar-toggler {
+            border-color: rgba(255,255,255,0.5);
+        }
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
         }
     </style>
 </head>

@@ -200,6 +200,251 @@
             max-height: 400px;
             overflow-y: auto;
         }
+
+        /* Mobile sidebar toggle */
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 1050;
+            font-size: 1.5rem;
+        }
+
+        /* Responsive - Tablet */
+        @media (max-width: 991px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 56px;
+                width: 280px;
+                height: calc(100vh - 56px);
+                z-index: 1040;
+                transition: left 0.3s ease;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 56px;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 1030;
+            }
+            .sidebar-overlay.show {
+                display: block;
+            }
+            .sidebar-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .content-area {
+                padding: 15px;
+            }
+            .col-md-2 {
+                display: none;
+            }
+            .col-md-10 {
+                width: 100%;
+                max-width: 100%;
+                flex: 0 0 100%;
+            }
+            .stat-card .stat-value {
+                font-size: 1.5rem;
+            }
+            .table-container {
+                max-height: 400px;
+            }
+            .filter-section .row > div {
+                margin-bottom: 10px;
+            }
+        }
+
+        /* Responsive - Mobile */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1rem;
+            }
+            .navbar .d-flex {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            #siteSelector {
+                width: 140px !important;
+                font-size: 0.85rem;
+            }
+            .content-area {
+                padding: 10px;
+            }
+            .card {
+                border-radius: 10px;
+            }
+            .card-header {
+                padding: 12px 15px;
+                font-size: 0.95rem;
+            }
+            .card-body {
+                padding: 15px;
+            }
+            .stat-card .stat-value {
+                font-size: 1.3rem;
+            }
+            .stat-card .card-body {
+                padding: 12px;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+            .table {
+                font-size: 0.85rem;
+            }
+            .table th, .table td {
+                padding: 8px 6px;
+            }
+            .btn-sm {
+                padding: 4px 8px;
+                font-size: 0.8rem;
+            }
+            .media-thumbnail {
+                width: 60px;
+                height: 60px;
+            }
+            .filter-section {
+                padding: 12px;
+            }
+            .inventory-search-panel {
+                padding: 15px;
+            }
+            .quick-stat {
+                padding: 10px;
+            }
+            .quick-stat .number {
+                font-size: 1.4rem;
+            }
+            .quick-stat .label {
+                font-size: 0.75rem;
+            }
+            .modal-dialog {
+                margin: 10px;
+            }
+            .modal-lg {
+                max-width: calc(100% - 20px);
+            }
+            /* Hide less important table columns on mobile */
+            .table .hide-mobile {
+                display: none;
+            }
+            /* Horizontal scroll for tables */
+            .table-responsive-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .export-btn {
+                margin-bottom: 5px;
+                width: 100%;
+            }
+        }
+
+        /* Responsive - Small Mobile */
+        @media (max-width: 480px) {
+            .navbar-brand {
+                font-size: 0.9rem;
+            }
+            .navbar-brand i {
+                display: none;
+            }
+            #siteSelector {
+                width: 120px !important;
+            }
+            .dropdown-toggle {
+                font-size: 0.85rem;
+                padding: 4px 10px;
+            }
+            h2 {
+                font-size: 1.2rem;
+            }
+            h2 i {
+                font-size: 1rem;
+            }
+            .card-header {
+                font-size: 0.9rem;
+            }
+            .stat-card .stat-value {
+                font-size: 1.2rem;
+            }
+            .table {
+                font-size: 0.8rem;
+            }
+            .quick-stat .number {
+                font-size: 1.2rem;
+            }
+            .form-control, .form-select {
+                font-size: 16px; /* Prevent iOS zoom */
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .box-card:hover,
+            .search-result-item:hover,
+            .media-thumbnail:hover {
+                transform: none;
+            }
+            .box-card:active,
+            .search-result-item:active {
+                background-color: #e9ecef;
+            }
+            .btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            .nav-link {
+                padding: 12px 15px !important;
+            }
+        }
+
+        /* Safe area for iPhone notch */
+        @supports (padding: max(0px)) {
+            .navbar {
+                padding-left: max(15px, env(safe-area-inset-left));
+                padding-right: max(15px, env(safe-area-inset-right));
+            }
+            .content-area {
+                padding-bottom: max(20px, env(safe-area-inset-bottom));
+            }
+            .sidebar-toggle {
+                bottom: max(20px, calc(env(safe-area-inset-bottom) + 10px));
+                right: max(20px, env(safe-area-inset-right));
+            }
+        }
+
+        /* Prevent text selection on touch */
+        .nav-link, .btn, .box-card {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* Loading indicator positioning */
+        #loadingIndicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+        }
     </style>
 </head>
 <body>
@@ -229,6 +474,14 @@
             </div>
         </div>
     </nav>
+
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Mobile sidebar toggle button -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="bi bi-list"></i>
+    </button>
 
     <div class="container-fluid">
         <div class="row">
@@ -1760,6 +2013,47 @@
                 alert('Error: ' + error.message);
             }
             hideLoading();
+        }
+
+        // Mobile sidebar toggle
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        if (sidebarToggle && sidebar) {
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+                const icon = sidebarToggle.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                    icon.classList.remove('bi-list');
+                    icon.classList.add('bi-x');
+                } else {
+                    icon.classList.remove('bi-x');
+                    icon.classList.add('bi-list');
+                }
+            });
+
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('show');
+                sidebarOverlay.classList.remove('show');
+                const icon = sidebarToggle.querySelector('i');
+                icon.classList.remove('bi-x');
+                icon.classList.add('bi-list');
+            });
+
+            // Close sidebar when clicking a nav link on mobile
+            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 991) {
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.classList.remove('show');
+                        const icon = sidebarToggle.querySelector('i');
+                        icon.classList.remove('bi-x');
+                        icon.classList.add('bi-list');
+                    }
+                });
+            });
         }
 
         // Initialize

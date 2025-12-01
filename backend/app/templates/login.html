@@ -194,14 +194,110 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Responsive */
+        /* Responsive - Tablet */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 0;
+            }
+            .login-container {
+                padding: 15px;
+            }
+        }
+
+        /* Responsive - Mobile */
         @media (max-width: 480px) {
+            body {
+                align-items: flex-start;
+                padding-top: 30px;
+            }
+            .login-container {
+                padding: 10px;
+                max-width: 100%;
+            }
+            .login-card {
+                border-radius: 15px;
+            }
             .login-header {
-                padding: 30px 20px;
+                padding: 25px 20px;
+            }
+            .login-header h2 {
+                font-size: 1.5rem;
+            }
+            .login-header p {
+                font-size: 0.85rem;
+            }
+            .login-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 1.8rem;
+                margin-bottom: 15px;
             }
             .login-body {
-                padding: 30px 20px;
+                padding: 25px 20px;
             }
+            .form-floating .form-control {
+                height: 54px;
+                font-size: 16px; /* Prevents iOS zoom on focus */
+            }
+            .form-floating label {
+                font-size: 0.9rem;
+            }
+            .btn-login {
+                padding: 14px;
+                font-size: 1rem;
+            }
+            .back-link {
+                margin-top: 20px;
+            }
+            .back-link a {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Small mobile */
+        @media (max-width: 360px) {
+            .login-header {
+                padding: 20px 15px;
+            }
+            .login-body {
+                padding: 20px 15px;
+            }
+            .login-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .btn-login:hover {
+                transform: none;
+                box-shadow: none;
+            }
+            .btn-login:active {
+                transform: scale(0.98);
+            }
+            .password-toggle {
+                padding: 10px;
+                min-width: 44px;
+                min-height: 44px;
+            }
+        }
+
+        /* Safe area for iPhone notch */
+        @supports (padding: max(0px)) {
+            body {
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        }
+
+        /* Prevent auto-zoom on iOS */
+        input[type="text"],
+        input[type="password"] {
+            font-size: 16px;
         }
     </style>
 </head>
