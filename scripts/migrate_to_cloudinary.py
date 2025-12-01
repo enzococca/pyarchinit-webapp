@@ -43,16 +43,12 @@ cloudinary.config(
 )
 
 
-def get_media_with_associations(conn):
-    """Get all UNIQUE media that have at least one association, deduplicating by id_media"""
+def get_all_media(conn):
+    """Get ALL UNIQUE media, deduplicating by id_media"""
     cursor = conn.cursor()
     cursor.execute("""
         SELECT mt.id_media, mt.media_filename, mt.filepath, mt.path_resize
         FROM media_thumb_table mt
-        WHERE EXISTS (
-            SELECT 1 FROM media_to_entity_table mte
-            WHERE mte.id_media = mt.id_media
-        )
         ORDER BY mt.id_media
     """)
 
@@ -150,11 +146,11 @@ def migrate_media():
         print(f"ERROR: Could not connect to database: {e}")
         sys.exit(1)
 
-    # Get media with associations (now returns dict keyed by id_media)
-    print("\nFetching media with associations...")
-    media_dict = get_media_with_associations(conn)
+    # Get ALL media (now returns dict keyed by id_media)
+    print("\nFetching all media...")
+    media_dict = get_all_media(conn)
     total_unique = len(media_dict)
-    print(f"  Found {total_unique} unique media IDs with associations")
+    print(f"  Found {total_unique} unique media IDs")
 
     # Statistics
     stats = {
@@ -238,7 +234,7 @@ if __name__ == "__main__":
         print("DRY RUN MODE - No files will be uploaded")
         # Just show what would be done
         conn = psycopg2.connect(**DB_CONFIG)
-        media_dict = get_media_with_associations(conn)
+        media_dict = get_all_media(conn)
         print(f"Would upload {len(media_dict)} unique media IDs")
 
         found_thumbs = 0
