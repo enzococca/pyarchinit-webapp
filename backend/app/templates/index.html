@@ -2485,87 +2485,126 @@
         }
 
         // Media Browser Functions
+        let mediaCurrentSkip = 0;
+        let mediaTotalCount = 0;
+        let mediaCurrentParams = {};
+
         async function loadMediaBrowser() {
             showLoading();
+            mediaCurrentSkip = 0;
+            mediaCurrentParams = { limit: 100 };
 
-            // Load initial media list
-            const result = await fetchAPI('/media/search', { limit: 100 });
+            const result = await fetchAPI('/media/search', mediaCurrentParams);
 
             if (result) {
                 allMediaData = result.items || [];
+                mediaTotalCount = result.total || 0;
 
-                // Show statistics
-                const statsContainer = document.getElementById('mediaStats');
-                statsContainer.innerHTML = `
-                    <div class="col-md-3">
-                        <div class="quick-stat">
-                            <div class="number">${result.total || 0}</div>
-                            <div class="label">Total Media</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="quick-stat">
-                            <div class="number">${result.statistics?.images || 0}</div>
-                            <div class="label">🖼️ Images</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="quick-stat">
-                            <div class="number">${result.statistics?.videos || 0}</div>
-                            <div class="label">🎬 Videos</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="quick-stat">
-                            <div class="number">${result.statistics?.models_3d || 0}</div>
-                            <div class="label">📦 3D Models</div>
-                        </div>
-                    </div>
-                `;
-
-                renderMediaGrid(allMediaData);
+                updateMediaStats(result);
+                renderMediaGrid(allMediaData, false);
+                updateMediaResultsCount();
             }
 
             hideLoading();
         }
 
+        function updateMediaStats(result) {
+            const statsContainer = document.getElementById('mediaStats');
+            statsContainer.innerHTML = `
+                <div class="col-md-3">
+                    <div class="quick-stat">
+                        <div class="number">${result.total || 0}</div>
+                        <div class="label">Total Media</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="quick-stat">
+                        <div class="number">${result.statistics?.images || 0}</div>
+                        <div class="label">🖼️ Images</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="quick-stat">
+                        <div class="number">${result.statistics?.videos || 0}</div>
+                        <div class="label">🎬 Videos</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="quick-stat">
+                        <div class="number">${result.statistics?.models_3d || 0}</div>
+                        <div class="label">📦 3D Models</div>
+                    </div>
+                </div>
+            `;
+        }
+
         async function searchMedia() {
             showLoading();
+            mediaCurrentSkip = 0;
 
             const mediaType = document.getElementById('mediaTypeFilter').value;
             const entityType = document.getElementById('mediaEntityFilter').value;
             const searchText = document.getElementById('mediaSearchText').value;
 
-            const params = { limit: 200 };
-            if (mediaType) params.media_category = mediaType;
-            if (entityType) params.entity_type = entityType;
-            if (searchText) params.filename = searchText;
+            mediaCurrentParams = { limit: 100 };
+            if (mediaType) mediaCurrentParams.media_category = mediaType;
+            if (entityType) mediaCurrentParams.entity_type = entityType;
+            if (searchText) mediaCurrentParams.filename = searchText;
 
-            const result = await fetchAPI('/media/search', params);
+            const result = await fetchAPI('/media/search', mediaCurrentParams);
 
             if (result) {
                 allMediaData = result.items || [];
-                renderMediaGrid(allMediaData);
-
-                // Update results count
-                document.getElementById('mediaResultsCount').textContent = `${result.total || 0} results`;
+                mediaTotalCount = result.total || 0;
+                updateMediaStats(result);
+                renderMediaGrid(allMediaData, false);
+                updateMediaResultsCount();
             }
 
             hideLoading();
         }
 
-        function renderMediaGrid(mediaList) {
+        async function loadMoreMedia() {
+            showLoading();
+            mediaCurrentSkip += 100;
+
+            const params = { ...mediaCurrentParams, skip: mediaCurrentSkip };
+            const result = await fetchAPI('/media/search', params);
+
+            if (result && result.items) {
+                allMediaData = [...allMediaData, ...result.items];
+                renderMediaGrid(result.items, true);
+                updateMediaResultsCount();
+            }
+
+            hideLoading();
+        }
+
+        function updateMediaResultsCount() {
+            const showing = allMediaData.length;
+            const total = mediaTotalCount;
+            document.getElementById('mediaResultsCount').innerHTML = `
+                Showing ${showing} of ${total}
+                ${showing < total ? `<button class="btn btn-sm btn-outline-primary ms-2" onclick="loadMoreMedia()">Load More</button>` : ''}
+            `;
+        }
+
+        function renderMediaGrid(mediaList, append = false) {
             const grid = document.getElementById('mediaResultsGrid');
             const noResults = document.getElementById('mediaNoResults');
 
             if (!mediaList || mediaList.length === 0) {
-                grid.innerHTML = '';
-                noResults.style.display = 'block';
+                if (!append) {
+                    grid.innerHTML = '';
+                    noResults.style.display = 'block';
+                }
                 return;
             }
 
             noResults.style.display = 'none';
-            grid.innerHTML = '';
+            if (!append) {
+                grid.innerHTML = '';
+            }
 
             mediaList.forEach(media => {
                 const category = media.media_category || 'image';

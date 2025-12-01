@@ -442,39 +442,56 @@ async def search_media_with_associations(
     Search media files with their entity associations.
     Returns media info along with which entities they belong to.
     """
-    from sqlalchemy import or_
+    # First get total statistics from all media
+    all_media_query = db.query(MediaThumb)
 
-    # Base query joining media with associations
-    query = db.query(MediaThumb, MediaToEntity).outerjoin(
-        MediaToEntity, MediaThumb.id_media == MediaToEntity.id_media
-    )
+    # Apply filename filter if provided
+    if filename:
+        all_media_query = all_media_query.filter(MediaThumb.media_filename.ilike(f"%{filename}%"))
 
-    # Filter by entity type
+    # If entity_type filter, we need to join
     if entity_type:
-        query = query.filter(MediaToEntity.entity_type == entity_type.upper())
+        all_media_query = all_media_query.join(
+            MediaToEntity, MediaThumb.id_media == MediaToEntity.id_media
+        ).filter(MediaToEntity.entity_type == entity_type.upper())
 
-    # Filter by filename
+    # Count by mediatype for statistics
+    all_media = all_media_query.all()
+
+    # Calculate statistics from all matching media
+    stats = {"image": 0, "video": 0, "3d": 0}
+    for m in all_media:
+        cat = get_media_category(m.media_filename, m.filetype, m.mediatype)
+        if cat in stats:
+            stats[cat] += 1
+
+    # Filter total count by media_category if specified
+    total_count = len(all_media)
+    if media_category:
+        total_count = stats.get(media_category, 0)
+
+    # Now get paginated results with associations
+    query = db.query(MediaThumb).distinct()
+
     if filename:
         query = query.filter(MediaThumb.media_filename.ilike(f"%{filename}%"))
 
-    # Get results
-    results = query.offset(skip).limit(limit).all()
+    if entity_type:
+        query = query.join(
+            MediaToEntity, MediaThumb.id_media == MediaToEntity.id_media
+        ).filter(MediaToEntity.entity_type == entity_type.upper())
 
-    # Process and filter by media_category
+    # Get paginated results
+    thumbs = query.offset(skip).limit(limit).all()
+
+    # Process results
     media_list = []
-    seen_ids = set()
-
-    for thumb, assoc in results:
-        if thumb.id_media in seen_ids:
-            continue
-
+    for thumb in thumbs:
         media_cat = get_media_category(thumb.media_filename, thumb.filetype, thumb.mediatype)
 
         # Filter by category if specified
         if media_category and media_category != media_cat:
             continue
-
-        seen_ids.add(thumb.id_media)
 
         # Get all associations for this media
         associations = db.query(MediaToEntity).filter(
@@ -499,17 +516,15 @@ async def search_media_with_associations(
             "entities": entity_info
         })
 
-    # Get statistics
-    total_images = sum(1 for m in media_list if m["media_category"] == "image")
-    total_videos = sum(1 for m in media_list if m["media_category"] == "video")
-    total_3d = sum(1 for m in media_list if m["media_category"] == "3d")
-
     return {
-        "total": len(media_list),
+        "total": total_count,
+        "showing": len(media_list),
+        "skip": skip,
+        "limit": limit,
         "statistics": {
-            "images": total_images,
-            "videos": total_videos,
-            "models_3d": total_3d
+            "images": stats["image"],
+            "videos": stats["video"],
+            "models_3d": stats["3d"]
         },
         "items": media_list
     }
