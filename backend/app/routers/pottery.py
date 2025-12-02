@@ -13,6 +13,52 @@ from ..schemas import PotteryResponse, PaginatedResponse
 router = APIRouter(prefix="/pottery", tags=["Pottery"])
 
 
+def add_drawing_info(pottery_list: List) -> List[dict]:
+    """Add has_drawing field to pottery list"""
+    if not pottery_list:
+        return []
+
+    result = []
+    for p in pottery_list:
+        p_dict = {
+            "id_rep": p.id_rep,
+            "sito": p.sito,
+            "area": p.area,
+            "us": p.us,
+            "id_number": p.id_number,
+            "box": p.box,
+            "photo": p.photo,
+            "drawing": p.drawing,
+            "anno": p.anno,
+            "fabric": p.fabric,
+            "percent": p.percent,
+            "material": p.material,
+            "form": p.form,
+            "specific_form": p.specific_form,
+            "ware": p.ware,
+            "munsell": p.munsell,
+            "surf_trat": p.surf_trat,
+            "exdeco": p.exdeco,
+            "intdeco": p.intdeco,
+            "wheel_made": p.wheel_made,
+            "descrip_ex_deco": p.descrip_ex_deco,
+            "descrip_in_deco": p.descrip_in_deco,
+            "note": p.note,
+            "diametro_max": float(p.diametro_max) if p.diametro_max else None,
+            "qty": p.qty,
+            "diametro_rim": float(p.diametro_rim) if p.diametro_rim else None,
+            "diametro_bottom": float(p.diametro_bottom) if p.diametro_bottom else None,
+            "diametro_height": float(p.diametro_height) if p.diametro_height else None,
+            "diametro_preserved": float(p.diametro_preserved) if p.diametro_preserved else None,
+            "specific_shape": p.specific_shape,
+            "bag": p.bag,
+            "sector": p.sector,
+            "has_drawing": bool(p.drawing and p.drawing.strip())  # True if drawing is not empty
+        }
+        result.append(p_dict)
+    return result
+
+
 @router.get("/", response_model=List[PotteryResponse])
 async def get_pottery_list(
     skip: int = Query(0, ge=0),
@@ -50,7 +96,7 @@ async def get_pottery_list(
         Pottery.id_number
     ).offset(skip).limit(limit).all()
 
-    return pottery
+    return add_drawing_info(pottery)
 
 
 @router.get("/paginated", response_model=PaginatedResponse)
@@ -97,7 +143,7 @@ async def get_pottery_paginated(
     ).offset((page - 1) * page_size).limit(page_size).all()
 
     return {
-        "items": items,
+        "items": add_drawing_info(items),
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -211,9 +257,20 @@ async def get_pottery_statistics(
         by_ware = by_ware.filter(Pottery.sito == sito)
     by_ware = by_ware.group_by(Pottery.ware).all()
 
+    # Count with drawing
+    with_drawing = db.query(func.count(Pottery.id_rep)).filter(
+        Pottery.drawing.isnot(None),
+        Pottery.drawing != ''
+    )
+    if sito:
+        with_drawing = with_drawing.filter(Pottery.sito == sito)
+    with_drawing = with_drawing.scalar() or 0
+
     return {
         "total": total,
         "total_qty": total_qty,
+        "with_drawing": with_drawing,
+        "without_drawing": total - with_drawing,
         "by_form": {f[0] or "N/A": f[1] for f in by_form},
         "by_material": {m[0] or "N/A": m[1] for m in by_material},
         "by_fabric": {f[0] or "N/A": f[1] for f in by_fabric},
@@ -227,4 +284,5 @@ async def get_pottery(pottery_id: int, db: Session = Depends(get_db)):
     pottery = db.query(Pottery).filter(Pottery.id_rep == pottery_id).first()
     if not pottery:
         raise HTTPException(status_code=404, detail="Pottery not found")
-    return pottery
+    result = add_drawing_info([pottery])
+    return result[0] if result else pottery

@@ -202,6 +202,17 @@ class Pottery(Base):
     sector = Column(Text)
 
 
+class USView(Base):
+    """US View with geometry - read only view for checking if US has GIS geometry"""
+    __tablename__ = 'pyarchinit_us_view'
+
+    id_us = Column(BigInteger, primary_key=True)
+    sito = Column(Text)
+    area = Column(Text)
+    us = Column(Text)
+    the_geom = Column(Text)  # geometry column - if not null, has geometry
+
+
 class MediaThumb(Base):
     """Media thumbnails"""
     __tablename__ = 'media_thumb_table'

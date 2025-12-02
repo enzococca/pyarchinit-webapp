@@ -49,6 +49,7 @@ class USBase(BaseModel):
 
 class USResponse(USBase):
     id_us: int
+    has_geometry: Optional[bool] = None  # Indicates if US has GIS geometry
 
     class Config:
         from_attributes = True
@@ -121,6 +122,7 @@ class PotteryBase(BaseModel):
 
 class PotteryResponse(PotteryBase):
     id_rep: int
+    has_drawing: Optional[bool] = None  # Computed from drawing field
 
     class Config:
         from_attributes = True

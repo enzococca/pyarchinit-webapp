@@ -797,6 +797,7 @@
                                             <th>Strat. Definition</th>
                                             <th>Interpretation</th>
                                             <th>Dating</th>
+                                            <th title="Has GIS geometry">GIS</th>
                                             <th>Media</th>
                                         </tr>
                                     </thead>
@@ -906,6 +907,7 @@
                                             <th>Area</th>
                                             <th>SU</th>
                                             <th>Ware</th>
+                                            <th title="Has Drawing">Draw</th>
                                             <th>Media</th>
                                         </tr>
                                     </thead>
@@ -1520,6 +1522,9 @@
             tbody.innerHTML = '';
 
             data?.forEach(u => {
+                const gisIcon = u.has_geometry
+                    ? '<i class="bi bi-geo-alt-fill text-success" title="Has GIS geometry"></i>'
+                    : '<i class="bi bi-geo-alt text-muted" title="No GIS geometry"></i>';
                 tbody.innerHTML += `
                     <tr>
                         <td>${u.sito || '-'}</td>
@@ -1528,6 +1533,7 @@
                         <td>${u.d_stratigrafica || '-'}</td>
                         <td>${u.d_interpretativa || '-'}</td>
                         <td>${u.datazione || '-'}</td>
+                        <td class="text-center">${gisIcon}</td>
                         <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('US', ${u.id_us})">
                             <i class="bi bi-images"></i>
                         </button></td>
@@ -1675,6 +1681,9 @@
             tbody.innerHTML = '';
 
             data?.forEach(p => {
+                const drawIcon = p.has_drawing
+                    ? '<i class="bi bi-pencil-fill text-success" title="Has drawing"></i>'
+                    : '<i class="bi bi-pencil text-muted" title="No drawing"></i>';
                 tbody.innerHTML += `
                     <tr>
                         <td>${p.sito || '-'}</td>
@@ -1685,6 +1694,7 @@
                         <td>${p.area || '-'}</td>
                         <td>${p.us || '-'}</td>
                         <td>${p.ware || '-'}</td>
+                        <td class="text-center">${drawIcon}</td>
                         <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('CERAMICA', ${p.id_rep})">
                             <i class="bi bi-images"></i>
                         </button></td>
