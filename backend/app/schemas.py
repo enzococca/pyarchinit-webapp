@@ -74,6 +74,7 @@ class MaterialeBase(BaseModel):
     peso: Optional[float] = None
     repertato: Optional[str] = None
     diagnostico: Optional[str] = None
+    years: Optional[int] = None  # Anno di scavo/registrazione
 
 
 class MaterialeResponse(MaterialeBase):

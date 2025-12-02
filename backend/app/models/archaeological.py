@@ -161,6 +161,7 @@ class InventarioMateriali(Base):
     n_reperto = Column(BigInteger)
     tipo_contenitore = Column(String(255))
     struttura = Column(String(255))
+    years = Column(BigInteger)  # Anno di scavo/registrazione
 
 
 class Pottery(Base):

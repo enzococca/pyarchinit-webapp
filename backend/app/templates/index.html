@@ -964,7 +964,21 @@
                             </div>
                         </div>
                         <div class="row g-3 mt-2">
-                            <div class="col-md-12">
+                            <div class="col-md-4">
+                                <label class="form-label">Filter by Year(s)</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="inventoryYearFilter" multiple size="1" style="height: 38px;">
+                                    </select>
+                                    <button class="btn btn-primary" onclick="filterInventoryByYear()">
+                                        <i class="bi bi-funnel"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="clearYearFilter()" title="Clear year filter">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Hold Ctrl/Cmd to select multiple years</small>
+                            </div>
+                            <div class="col-md-8">
                                 <label class="form-label">Full Text Search</label>
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="inventoryFullSearch" placeholder="Search in descriptions, definitions, types...">
@@ -1701,21 +1715,44 @@
             renderPotteryTable(filtered);
         }
 
+        // Current year filter for inventory
+        let currentYearFilter = [];
+
         // Load Inventory - Enhanced
-        async function loadInventory() {
+        async function loadInventory(yearFilter = null) {
             showLoading();
             const params = currentSite ? { sito: currentSite } : {};
 
-            const [summary, materiali, types, storages, boxes] = await Promise.all([
+            // Add year filter if specified
+            const yearsToUse = yearFilter || currentYearFilter;
+            if (yearsToUse.length > 0) {
+                params.years = yearsToUse;
+            }
+
+            const [summary, materiali, types, storages, boxes, availableYears] = await Promise.all([
                 fetchAPI('/materiali/summary', params),
                 fetchAPI('/materiali/', { ...params, limit: 5000 }),
                 fetchAPI('/materiali/types', params),
                 fetchAPI('/materiali/storage-locations', params),
-                fetchAPI('/materiali/boxes', params)
+                fetchAPI('/materiali/boxes', params),
+                fetchAPI('/materiali/years', currentSite ? { sito: currentSite } : {})
             ]);
 
             // Store all materials data for local search
             allMaterialsData = materiali || [];
+
+            // Populate year filter dropdown
+            const yearSelect = document.getElementById('inventoryYearFilter');
+            yearSelect.innerHTML = '';
+            availableYears?.forEach(y => {
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = y;
+                if (yearsToUse.includes(y)) {
+                    option.selected = true;
+                }
+                yearSelect.appendChild(option);
+            });
 
             // Populate search filters
             const categorySelect = document.getElementById('countCategory');
@@ -1736,7 +1773,22 @@
             const totalWeight = materiali?.reduce((sum, m) => sum + (m.peso || 0), 0) || 0;
             const totalFragments = materiali?.reduce((sum, m) => sum + (m.totale_frammenti || 0), 0) || 0;
 
+            // Year filter indicator
+            const yearFilterBadge = yearsToUse.length > 0
+                ? `<span class="badge bg-warning text-dark ms-2"><i class="bi bi-funnel-fill"></i> ${yearsToUse.join(', ')}</span>`
+                : '';
+
             quickStatsContainer.innerHTML = `
+                ${yearsToUse.length > 0 ? `
+                <div class="col-12 mb-2">
+                    <div class="alert alert-info py-2 mb-0 d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-funnel-fill me-2"></i>Filtering by year(s): <strong>${yearsToUse.join(', ')}</strong></span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="clearYearFilter()">
+                            <i class="bi bi-x-lg"></i> Clear Filter
+                        </button>
+                    </div>
+                </div>
+                ` : ''}
                 <div class="col-md-2">
                     <div class="quick-stat">
                         <div class="number">${summary?.total_materials || 0}</div>
@@ -1941,6 +1993,27 @@
             );
         }
 
+        function filterInventoryByYear() {
+            const yearSelect = document.getElementById('inventoryYearFilter');
+            const selectedYears = Array.from(yearSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+            if (selectedYears.length === 0) {
+                currentYearFilter = [];
+                loadInventory();
+                return;
+            }
+
+            currentYearFilter = selectedYears;
+            loadInventory(selectedYears);
+        }
+
+        function clearYearFilter() {
+            currentYearFilter = [];
+            const yearSelect = document.getElementById('inventoryYearFilter');
+            Array.from(yearSelect.options).forEach(opt => opt.selected = false);
+            loadInventory();
+        }
+
         function showSearchResults(title, info, results) {
             const panel = document.getElementById('searchResultsPanel');
             const infoDiv = document.getElementById('searchResultsInfo');
@@ -1949,11 +2022,14 @@
             // Group by category for summary
             const byCategory = {};
             const byBox = {};
+            const byYear = {};
             results.forEach(r => {
                 const cat = r.tipo_reperto || 'Unknown';
                 const box = r.nr_cassa || 'No box';
+                const year = r.years || 'N/A';
                 byCategory[cat] = (byCategory[cat] || 0) + 1;
                 byBox[box] = (byBox[box] || 0) + 1;
+                byYear[year] = (byYear[year] || 0) + 1;
             });
 
             const categorySummary = Object.entries(byCategory)
@@ -1964,11 +2040,17 @@
                 .map(([k, v]) => `<span class="badge bg-info me-1">Box ${k}: ${v}</span>`)
                 .join('');
 
+            const yearSummary = Object.entries(byYear)
+                .sort((a, b) => b[0] - a[0])
+                .map(([k, v]) => `<span class="badge bg-warning text-dark me-1">${k}: ${v}</span>`)
+                .join('');
+
             infoDiv.innerHTML = `
                 <h6>${title}</h6>
                 <p class="mb-2">${info}</p>
                 <div class="mb-2"><strong>By Category:</strong> ${categorySummary}</div>
-                <div><strong>By Box:</strong> ${boxSummary}</div>
+                <div class="mb-2"><strong>By Box:</strong> ${boxSummary}</div>
+                <div><strong>By Year:</strong> ${yearSummary}</div>
             `;
 
             contentDiv.innerHTML = `
@@ -1982,6 +2064,7 @@
                             <th>SU</th>
                             <th>Box</th>
                             <th>Storage</th>
+                            <th>Year</th>
                             <th>Weight</th>
                             <th>Media</th>
                         </tr>
@@ -1996,6 +2079,7 @@
                                 <td>${m.us || '-'}</td>
                                 <td>${m.nr_cassa || '-'}</td>
                                 <td>${m.luogo_conservazione || '-'}</td>
+                                <td>${m.years || '-'}</td>
                                 <td>${m.peso ? m.peso + 'g' : '-'}</td>
                                 <td><button class="btn btn-sm btn-outline-primary" onclick="showMedia('REPERTO', ${m.id_invmat})">
                                     <i class="bi bi-images"></i>

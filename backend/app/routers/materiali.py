@@ -24,6 +24,7 @@ async def get_materiali(
     nr_cassa: Optional[int] = None,
     luogo_conservazione: Optional[str] = None,
     tipo_reperto: Optional[str] = None,
+    years: Optional[List[int]] = Query(None, description="Filter by one or more years"),
     search: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -42,6 +43,8 @@ async def get_materiali(
         query = query.filter(InventarioMateriali.luogo_conservazione == luogo_conservazione)
     if tipo_reperto:
         query = query.filter(InventarioMateriali.tipo_reperto == tipo_reperto)
+    if years:
+        query = query.filter(InventarioMateriali.years.in_(years))
     if search:
         query = query.filter(
             (InventarioMateriali.descrizione.ilike(f"%{search}%")) |
@@ -66,6 +69,7 @@ async def get_materiali_paginated(
     nr_cassa: Optional[int] = None,
     luogo_conservazione: Optional[str] = None,
     tipo_reperto: Optional[str] = None,
+    years: Optional[List[int]] = Query(None, description="Filter by one or more years"),
     search: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -84,6 +88,8 @@ async def get_materiali_paginated(
         query = query.filter(InventarioMateriali.luogo_conservazione == luogo_conservazione)
     if tipo_reperto:
         query = query.filter(InventarioMateriali.tipo_reperto == tipo_reperto)
+    if years:
+        query = query.filter(InventarioMateriali.years.in_(years))
     if search:
         query = query.filter(
             (InventarioMateriali.descrizione.ilike(f"%{search}%")) |
@@ -107,9 +113,23 @@ async def get_materiali_paginated(
     }
 
 
+@router.get("/years", response_model=List[int])
+async def get_available_years(
+    sito: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get list of available years in the inventory"""
+    query = db.query(distinct(InventarioMateriali.years))
+    if sito:
+        query = query.filter(InventarioMateriali.sito == sito)
+    years = query.all()
+    return sorted([y[0] for y in years if y[0] is not None], reverse=True)
+
+
 @router.get("/summary", response_model=MaterialsSummary)
 async def get_materials_summary(
     sito: Optional[str] = None,
+    years: Optional[List[int]] = Query(None, description="Filter by one or more years"),
     db: Session = Depends(get_db)
 ):
     """
@@ -119,6 +139,8 @@ async def get_materials_summary(
     query = db.query(InventarioMateriali)
     if sito:
         query = query.filter(InventarioMateriali.sito == sito)
+    if years:
+        query = query.filter(InventarioMateriali.years.in_(years))
 
     all_materials = query.all()
 
@@ -182,6 +204,7 @@ async def get_materials_summary(
 async def get_boxes(
     sito: Optional[str] = None,
     luogo_conservazione: Optional[str] = None,
+    years: Optional[List[int]] = Query(None, description="Filter by one or more years"),
     db: Session = Depends(get_db)
 ):
     """Get list of boxes with item counts"""
@@ -195,6 +218,8 @@ async def get_boxes(
         query = query.filter(InventarioMateriali.sito == sito)
     if luogo_conservazione:
         query = query.filter(InventarioMateriali.luogo_conservazione == luogo_conservazione)
+    if years:
+        query = query.filter(InventarioMateriali.years.in_(years))
 
     results = query.group_by(
         InventarioMateriali.nr_cassa,
@@ -210,6 +235,8 @@ async def get_boxes(
             )
             if sito:
                 types_query = types_query.filter(InventarioMateriali.sito == sito)
+            if years:
+                types_query = types_query.filter(InventarioMateriali.years.in_(years))
             types = [t[0] for t in types_query.all() if t[0]]
 
             boxes.append(BoxSummary(
