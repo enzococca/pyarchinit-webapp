@@ -175,11 +175,16 @@ async def get_us_statistics(sito: Optional[str] = None, db: Session = Depends(ge
         by_type = by_type.filter(US.sito == sito)
     by_type = by_type.group_by(US.d_stratigrafica).all()
 
-    # Count with geometry
-    with_geometry = db.query(func.count(USView.id_us)).filter(USView.the_geom.isnot(None))
+    # Count US with geometry - only count distinct id_us from the view that exist in our filtered US list
+    us_ids_query = db.query(US.id_us)
     if sito:
-        with_geometry = with_geometry.filter(USView.sito == sito)
-    with_geometry = with_geometry.scalar() or 0
+        us_ids_query = us_ids_query.filter(US.sito == sito)
+    us_ids = [u[0] for u in us_ids_query.all()]
+
+    with_geometry = db.query(func.count(func.distinct(USView.id_us))).filter(
+        USView.the_geom.isnot(None),
+        USView.id_us.in_(us_ids)
+    ).scalar() or 0 if us_ids else 0
 
     return {
         "total": total,
